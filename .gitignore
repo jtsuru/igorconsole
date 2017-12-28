@@ -1,0 +1,4 @@
+build/
+dist/
+igorconsole.egg-info/
+__pycache__
