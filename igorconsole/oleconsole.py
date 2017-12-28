@@ -101,6 +101,9 @@ class IgorApp:
         com = win32com.client.Dispatch("IgorPro.Application")
         com.Visible = visible
         result.com_instance = com
+        if 7.0 <= result.version < 7.07:
+            # to prevent crashing
+            time.sleep(5)
         result.write_history('* Started from igorconsole.\n')
 
         return result
@@ -120,6 +123,9 @@ class IgorApp:
         com = win32com.client.GetActiveObject("IgorPro.Application")
         com.Visible = visible
         result.com_instance = com
+        if 7.0 <= result.version < 7.07:
+            # to prevent crashing
+            time.sleep(5)
         result.write_history('* Connected from igorconsole.\n')
 
         return result
@@ -359,9 +365,13 @@ class IgorApp:
             warnings.warn("This file is not saved."
                           + "Please make 'True' only_when_saved flag.")
             return None
+        version = self.version
         self.com_instance.Quit()
         self.com_instance = None
         del self.com_instance
+        if version >= 7.0:
+            time.sleep(1)
+
 
     def quite_wo_save(self):
         self.quit(only_when_saved=False)
@@ -1357,9 +1367,7 @@ class WaveCollection(IgorObjectCollection):
         return Wave(self.reference(key), self.app, input_check=False)
 
     def __contains__(self, name):
-        #self.reference.WaveExists(name) has bug, and always returns False. (igor 6.37)
-        if self.app.version >= 7.0:
-            return self.reference.WaveExists(name)
+        #self.reference.WaveExists(name) has bug, and always returns False. (igor 6.37, igor 7.06)
         if self.parent is not None:
             return self.parent.reference.WaveExists(name)
         return name in self.names
