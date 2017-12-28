@@ -56,9 +56,6 @@ COMMAND_MAXLEN = int(config["Command"]["max_length"])
 del config, _
 HOME_DIR = os.path.expanduser("~")
 
-real_nums = (int, float, np.bool_, np.integer, np.floating)
-complex_nums = (complex, np.complexfloating)
-
 def object_type(obj):
     if not isinstance(obj, win32com.client.CDispatch):
         return type(obj)
@@ -219,8 +216,6 @@ class IgorApp:
             return returnvalue[0]
         else:
             return tuple(returnvalue)
-
-
 
     @property
     def fullpath(self):
@@ -407,6 +402,9 @@ class IgorApp:
     def panels(self):
         return [Panel(item, self) for item in self.window_names(csts.WindowType.Panel)]
 
+    def win_exists(self, name):
+        return bool(self.get_value('WinType("{0}")'.format(name)))
+
     def display(self, ywaves, xwave=None, *,
                 winname=None, title=None, yaxis=None, xaxis=None,
                 frame=None, hide=False, host=None, win_location=None,
@@ -470,12 +468,10 @@ class IgorApp:
 
         command = ""
         if winname is None:
-            winname = datetime.datetime.now().strftime("icg_%Y%m%d%H%M%S%f")
-
-        winname_is_already_exists = bool(self.get_value('WinType("{0}")'.format(winname)))
+            winname = utils.current_time("icg_")
         if overwrite:
             command += "DoWindow/K {};".format(winname)
-        elif winname_is_already_exists:
+        elif self.win_exists(winname):
             raise RuntimeError("Graph already exists")
         command += "Display"
         if xaxis is not None:
@@ -525,6 +521,42 @@ class IgorApp:
                     oneline += commands.pop() +";"
                 self.execute(oneline)
         return Graph(winname, self)
+
+    def edit(self, waves, *, winname=None, title=None, hide=False, host=None,
+             win_location=None, unit=None, win_behavior=0, overwrite=False):
+        commands = []
+        oneline = []
+        apd = oneline.append
+
+        if winname is None:
+            winname = utils.current_time("ict_")
+        if overwrite:
+            commands.append("DoWindow/K {};".format(winname))
+        elif self.win_exists(winname):
+            raise RuntimeError("Table already exists")
+
+        apd("Edit")
+        if hide:
+            apd("/HIDE=1")
+        if host is not None:
+            apd("/HOST={0}".format(host.name))
+        if unit is not None:
+            if unit.lower() == "inch":
+                apd("/I")
+            elif unit.lower() == "cm":
+                apd("/M")
+        apd("/K={}".format(win_behavior))
+        if win_location is not None:
+            apd("/W=({0}, {1}, {2}, {3})".format(*win_location))
+        if title is not None:
+            apd(' as "{}";'.format(title))
+        commands.append("".join(oneline))
+        for com in commands:
+            self.execute(com)
+        result = Table(winname, self)
+        for w in waves:
+            result.append(w, return_key=False)
+        return result
 
     def _newpath(self, path: str):
         path = path.replace("\\", ":").replace("/", ":") + ":"
@@ -1026,8 +1058,8 @@ class Wave(IgorObjectBase):
     def _unit_to_int(dimension):
         d = dimension
         dmatch = lambda exp: re.match(exp, dimension, re.IGNORECASE)
-        if isinstance(d, int):
-            pass
+        if utils.isint(d):
+            d = int(d)
         elif dmatch("rows?"):
             d = 0
         elif dmatch("columns?"):
@@ -1191,7 +1223,7 @@ class Wave(IgorObjectBase):
         shape = self.shape
         length = shape[0] if shape else 0
         ndim = len(shape)
-        if isinstance(key, int) and ndim == 1 and isinstance(value, real_nums):
+        if utils.isint(key) and ndim == 1 and utils.isreal(value):
             if key >= length:
                 raise IndexError("Wave index out of range")
             elif key < -length:
@@ -1225,6 +1257,12 @@ class Wave(IgorObjectBase):
             return self.array == other.array
         else:
             return self.array == other
+
+    def is_(self, other):
+        return self.path == other.path
+
+    def is_equiv(self, other):
+        return np.all(self.array == other.array) and np.all(self.parray == other.parray)
 
     def __gt__(self, other):
         if isinstance(other, Wave):
@@ -1287,7 +1325,7 @@ class Wave(IgorObjectBase):
             raise AttributeError()
 
 
-class IgorObjectCollection(ABC, c_abc.Mapping):
+class IgorObjectCollectionBase(ABC, c_abc.Mapping):
     def __init__(self, reference, app):
         self.reference = reference
         self.app = app
@@ -1305,8 +1343,8 @@ class IgorObjectCollection(ABC, c_abc.Mapping):
         return (self[i] for i in range(len(self)-1, -1, -1))
 
     def get(self, key):
-        if isinstance(key, int) and 0 <= key < len(self):
-            return self[key]
+        if utils.isint(key) and 0 <= key < len(self):
+            return self[int(key)]
         if isinstance(key, str) and key in self:
             return self[key]
         return None
@@ -1334,7 +1372,7 @@ class IgorObjectCollection(ABC, c_abc.Mapping):
         return [self[key] for key in self.keys()]
 
 
-class FolderCollection(IgorObjectCollection):
+class FolderCollection(IgorObjectCollectionBase):
     def __getitem__(self, key):
         """
         get folders by numeric index or by the folder name.
@@ -1353,7 +1391,7 @@ class FolderCollection(IgorObjectCollection):
         return FolderCollection(self.reference, self.app)
 
 
-class WaveCollection(IgorObjectCollection):
+class WaveCollection(IgorObjectCollectionBase):
     def __init__(self, reference, app, parent=None):
         super().__init__(reference, app)
         #相互参照を作らないように注意
@@ -1425,8 +1463,6 @@ class WaveCollection(IgorObjectCollection):
     #    return result
 
     def _to_Series_dict(self, index="position"):
-        if not is_pandas_loaded:
-            raise NotImplementedError()
         return {name: wave.to_Series(index=index) for name, wave,
                 in zip(self.keys(), self.values())}
 
@@ -1440,7 +1476,7 @@ class WaveCollection(IgorObjectCollection):
         return pd.concat(sdict.values(), **kwargs)
 
 
-class VariableCollection(IgorObjectCollection):
+class VariableCollection(IgorObjectCollectionBase):
     def __getitem__(self, key):
         """
         get variables by numeric index or by the folder name.
@@ -1460,9 +1496,9 @@ class VariableCollection(IgorObjectCollection):
             return self._add_numeric(name, value, overwrite=overwrite)
 
     def _add_numeric(self, name, value, overwrite=True):
-        if isinstance(value, real_nums):
+        if utils.isreal(value):
             dtype = dtypedict[np.float64]
-        elif isinstance(value, complex_nums):
+        elif utils.iscomplex(value):
             dtype = dtypedict[np.complex128]
         else:
             raise ValueError()
@@ -1507,7 +1543,53 @@ class Graph(Window):
     def __repr__(self):
         return "<igorconsole.Graph named {0}>".format(self.name)
 
-    def trace_names(self, normal=True, contour=True, hidden=False):
+    def __contains__(self, key):
+        if isinstance(key, str):
+            return key in self.keys()
+        elif isinstance(key, Wave):
+            for wave in self.values():
+                if key.is_(wave):
+                    return True
+            return False
+        else:
+            raise ValueError()
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __getitem__(self, key):
+        if utils.isint(key):
+            return self.trace_wave(int(key), True, True, True)
+        elif isinstance(key, str) and (key in self):
+            return Wave(self._to_fullpath(key), self.app)
+        elif isinstance(key, (np.ndarray, list, slice)):
+            result = np.array(self.values())[key]
+            return result.tolist()
+        raise KeyError("Trace {} is not in this graph.".format(key))
+
+    def keys(self):
+        return self.traces(True, True, True)
+
+    def values(self):
+        return list(self.trace_waves(True, True, True))
+
+    def items(self):
+        return [(key, self.trace_wave(key, True, True, True))
+                for key in self.keys()]
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __eq__(self, other):
+        raise NotImplementedError()
+
+    def traces(self, normal=True, contour=True, hidden=False):
         flags = 0
         if normal:
             flags += 0b1
@@ -1519,13 +1601,19 @@ class Graph(Window):
                    .format(self.name, flags))[1][0].split(";")[:-1]
         return listname
 
-    def traces(self, normal=True, contour=True, hidden=False):
-        def to_fullpath(trace_name):
-            command = 'fprintf 0, GetWavesDataFolder(TraceNameToWaveRef("{0}", "{1}"), 2)'\
-                      .format(self.name, trace_name)
-            return self.app.execute(command)[1][0]
-        names = self.trace_names(normal, contour, hidden)
-        return (Wave(to_fullpath(name), self.app) for name in names)
+    def _to_fullpath(self, trace_name):
+        command = 'fprintf 0, GetWavesDataFolder(TraceNameToWaveRef("{0}", "{1}"), 2)'\
+                    .format(self.name, trace_name)
+        return self.app.execute(command)[1][0]
+
+    def trace_wave(self, trace, normal=True, contour=True, hidden=False):
+        if utils.isint(trace):
+            trace = self.traces(normal, contour, hidden)[int(trace)]
+        return Wave(self._to_fullpath(trace), self.app)
+
+    def trace_waves(self, normal=True, contour=True, hidden=False):
+        names = self.traces(normal, contour, hidden)
+        return (Wave(self._to_fullpath(name), self.app) for name in names)
 
     #def remove_trace(self, waves):
     #    if isinstance(waves, Wave) or isinstance(waves, str):
@@ -1559,7 +1647,7 @@ class Graph(Window):
         command_dict.update(kwargs)
         commands = []
         for key, val in command_dict.items():
-            val = int(val) if isinstance(val, bool) else val
+            val = int(val) if utils.isbool(val) else val
             val = '"{0}"'.format(val) if isinstance(val, str) else val
             commands.append("{0}={1}".format(key, val))
         self.modify_by_commands(commands)
@@ -1593,14 +1681,13 @@ class Graph(Window):
             style = json.load(f)
         self.modify_s(style)
 
-    def map_color(self, style:str, init_trace_num=None,
-                  last_trace_num=None, *args, **kwargs):
-        trace_names = self.trace_names()[init_trace_num:last_trace_num]
-        length = len(trace_names)
+    def map_color(self, style:str, traces=None, *args, **kwargs):
+        traces = self.traces() if traces is None else traces
+        length = len(traces)
         from . import colorfuncs
         grad_func = colorfuncs.gradation[style]
         trace_colors = {}
-        for i, trace in enumerate(trace_names):
+        for i, trace in enumerate(traces):
             color = tuple(grad_func(i/(length-1), *args, **kwargs))
             trace_colors["rgb({})".format(trace)] = color
         self.modify(trace_colors)
@@ -1728,7 +1815,7 @@ class Graph(Window):
                 apd("/b=360")
             elif r == "8x":
                 apd("/b=576")
-            elif isinstance(r, int) and r in ress:
+            elif utils.isint(r) and (r in ress):
                 apd("/b={0}".format(r))
             else:
                 raise RuntimeError()
@@ -1799,10 +1886,175 @@ class Graph(Window):
         pyplot.gca().spines["top"].set_visible(False)
         pyplot.show()
 
+    def reorder(self, order, normal=True, contour=True, hidden=False):
+        """
+            Args:
+                order: [0,3,2,1] or ["tr0", "tr3", "tr2", "tr1"]
+        """
+        order_array = np.asrray(order)
+        if issubclass(order_array.dtype.type, np.integer):
+            traces = self.traces(normal, contour, hidden)
+            order = [traces[i] for i in order]
+        elif issubclass(order_array.dtype.type, np.str_):
+            pass
+        else:
+            raise ValueError()
+
+        revorder = reversed(order)
+        trace = next(revorder)
+        for item in reversed(order):
+            anchor, trace = trace, item
+            command = "ReorderTraces/W={0} {1},{{{2}}}".format(self.name, anchor, trace)
+            igor.execute(command)
+
 
 class Table(Window):
-    #not implemented yet
-    pass
+    def _raw_info_str(self, num):
+        command = 'fprintf 0,TableInfo("{0}",{1})'.format(self.name, num)
+        return self.app.execute(command)[1][0]
+
+    def _raw_info_list(self, num):
+        return self._raw_info_str(num).split(";")[:-1]
+
+    def _raw_info_dict(self, num):
+        return {item.split(":", 1)[0]: item.split(":", 1)[1]
+                for item in self._raw_info_list(num)}
+
+    def _column_name(self, num):
+        return self._raw_info_dict(num)["COLUMNNAME"]
+
+    @property
+    def column_num(self):
+        return int(self._raw_info_dict(-2)["COLUMNS"]) - 1
+
+    @property
+    def row_num(self):
+        return int(self._raw_info_dict(-2)["ROWS"])
+
+    @property
+    def _column_names(self):
+        return [self._column_name(i) for i in range(self.column_num)]
+
+    def _int_to_column_index(self, key: int):
+        length = self.column_num
+        if -length <= key < length:
+            return int(key)%length
+        else:
+            raise IndexError("key {} out of bounds.".format(key))
+
+    def _str_to_column_index(self, key: str):
+        key = str(key)
+        cnames = self._column_names
+        if "." not in key:
+            cnames = [cn.rsplit(".")[0] for cn in cnames]
+        unique_cnames = utils.to_unique_key(cnames)
+        if key in unique_cnames:
+            return unique_cnames.index(key)
+        if key in cnames:
+            return cnames.index(key)
+
+    def _slice_to_column_index(self, key):
+        length = self.column_num
+        start = 0 if key.start is None else max(-length, key.start)%length
+        stop = length if key.stop is None else min(key.stop, length)
+        stop = stop+length if stop < 0 else stop
+        step = 1 if key.step is None else key.step
+        return iter(range(start, stop, step))
+
+    def _to_column_index(self, key):
+        if utils.isint(key):
+            return self._int_to_column_index(key)
+        elif utils.isstr(key):
+            #access by column name
+            return self._str_to_column_index(key)
+        elif isinstance(key, slice):
+            #access by slice
+            return self._slice_to_column_index(key)
+        elif hasattr(key, "__iter__")\
+             and hasattr(key, "__len__")\
+             and len(key) == self.column_num\
+             and all(utils.isbool(item) for item in key):
+             #access by bool index
+            return (i for i, filt in enumerate(key) if filt)
+        elif hasattr(key, "__iter__"):
+            #access by fancy index. str list is acceptable
+            return iter(key)
+        else:
+            raise TypeError("Key must be a str or integer.")
+
+    def _unique_key(self):
+        return utils.to_unique_key(self._column_names)
+
+    def _column_wave(self, key):
+        key = self._to_column_index(key)
+        if isinstance(key, int):
+            return Wave(self._raw_info_dict(key)["WAVE"], self.app)
+        else:
+            return [Wave(self._raw_info_dict(item)["WAVE"], self.app)
+                    for item in key]
+
+    def __contains__(self, obj):
+        if utils.isstr(obj):
+            if obj in self.keys():
+                return True
+            if obj in self._column_names:
+                return True
+            return False
+        elif isinstance(obj, Wave):
+            for wv in self.waves:
+                if obj.is_(wv):
+                    return True
+            return False
+
+    def __len__(self):
+        #return len(self.keys())
+        # -> optimaized
+        return len(self._column_names)
+
+    def keys(self):
+        return self._unique_key()
+
+    def values(self):
+        return self.waves
+
+    def items(self):
+        keys = self.keys()
+        values = self.values()
+        return [(k, v) for k, v in zip(keys, values)]
+
+    @property
+    def _column_waves(self):
+        return [self._column_wave(i) for i in range(self.column_num)]
+
+    @property
+    def _waves_paths(self):
+        return set(self._raw_info_dict(i)["WAVE"] for i in range(self.column_num))
+
+    @property
+    def waves(self):
+        return [Wave(path, self.app) for path in self._wave_paths()]
+
+    def wave_at(self, column):
+        return self._column_wave(column)
+
+    def append(self, wave, *, return_key=True):
+        command = "AppendToTable/W={0} {1}".format(self.name, wave.quoted_path)
+        self.app.execute(command)
+        if return_key:
+            return self.keys()[-1]
+
+    def _to_Series_dict(self, index="position"):
+        return {name: wave.to_Series(index=index) for name, wave,
+                in zip(self._column_names, self._column_waves)}
+
+    def to_DataFrame(self, index="position", **kwargs):
+        import pandas as pd
+        if "axis" not in kwargs:
+            kwargs["axis"] = 1
+        sdict = self._to_Series_dict(index=index)
+        if "keys" not in kwargs:
+            kwargs["keys"] = sdict.keys()
+        return pd.concat(sdict.values(), **kwargs)
 
 
 class NoteBook(Window):

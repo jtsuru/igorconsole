@@ -5,7 +5,7 @@ from igorconsole import __version__
 setup(
     name="igorconsole",
     version=__version__,
-    description='Allows seamless controlling if Igor Pro from python.',
+    description='Allows seamless controlling of Igor Pro from python.',
     url='https://github.com/jtsuru/igorconsole',
     author="jtsuru",
     author_email="33685861+jtsuru@users.noreply.github.com",
