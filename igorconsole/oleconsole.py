@@ -101,7 +101,7 @@ class IgorApp:
         com = win32com.client.Dispatch("IgorPro.Application")
         com.Visible = visible
         result.com_instance = com
-        result.execute('print "Started from igorconsole."')
+        result.write_history('* Started from igorconsole.\n')
 
         return result
 
@@ -120,7 +120,7 @@ class IgorApp:
         com = win32com.client.GetActiveObject("IgorPro.Application")
         com.Visible = visible
         result.com_instance = com
-        result.execute('print "Connected from igorconsole."')
+        result.write_history('* Connected from igorconsole.\n')
 
         return result
 
@@ -1331,7 +1331,7 @@ class FolderCollection(IgorObjectCollection):
         get folders by numeric index or by the folder name.
         """
         key = key if isinstance(key, str) else int(key)
-        return Folder(self.reference[key], self.app, input_check=False)
+        return Folder(self.reference(key), self.app, input_check=False)
 
     def __contains__(self, name):
         return self.reference.DataFolderExists(name)
@@ -1355,10 +1355,12 @@ class WaveCollection(IgorObjectCollection):
         get waves by numeric index or by the folder name.
         """
         key = key if isinstance(key, str) else int(key)
-        return Wave(self.reference[key], self.app, input_check=False)
+        return Wave(self.reference(key), self.app, input_check=False)
 
     def __contains__(self, name):
         #self.reference.WaveExists(name) has bug, and always returns False. (igor 6.37)
+        if self.app.version >= 7.0:
+            return self.reference.WaveExists(name)
         if self.parent is not None:
             return self.parent.reference.WaveExists(name)
         return name in self.names
@@ -1437,7 +1439,7 @@ class VariableCollection(IgorObjectCollection):
         get variables by numeric index or by the folder name.
         """
         key = key if isinstance(key, str) else int(key)
-        return Variable(self.reference[key], self.app, input_check=False)
+        return Variable(self.reference(key), self.app, input_check=False)
 
     def __contains__(self, name):
         return self.reference.VariableExists(name)
