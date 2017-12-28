@@ -164,7 +164,6 @@ class IgorApp:
             histories (list of str): Output of the igor in the history area.
             results (list of str): Any strs created by sprintf.
         """
-        print(command)
         errcode, errmsg, history, result = self.com_instance.Execute2(not logged, False, command)
         if errcode:
             raise RuntimeError("Igor execute error " + str(errcode) + ": " + errmsg)
@@ -1740,7 +1739,6 @@ class Graph(Window):
         self.app._newpath(folder)
         apd("/P=igorconsole_path")
         apd(' as "{0}"'.format(file_))
-        print("".join(command))
         return self.app.execute("".join(command))
 
     def get_image_binary(self, filetype="pdf",
