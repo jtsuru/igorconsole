@@ -1,4 +1,4 @@
-import functools
+﻿import functools
 import operator
 
 import numpy as np
@@ -40,3 +40,27 @@ def from_igor_complex_wave_order(array, dtype=np.complex128):
     result.real = array[:, real]
     result.imag = array[:, imag]
     return result
+
+BOOLS = (bool, np.bool_)
+INT_NUMS = (int, np.bool_, np.integer)
+REAL_NUMS = (int, float, np.bool_, np.integer, np.floating)
+FLOAT_NUMS = (float, np.floating)
+COMP_NUMS = (complex, np.complexfloating)
+
+def isbool(obj):
+    return isinstance(obj, BOOLS)
+
+def isint(obj):
+    return isinstance(obj, INT_NUMS)
+
+def isreal(obj):
+    return isinstance(obj, REAL_NUMS)
+
+def isfloat(obj):
+    return isinstance(obj, FLOAT_NUMS)
+
+def iscomplex(obj):
+    return isinstance(obj, COMP_NUMS)
+
+def isstr(obj):
+    return isinstance(obj, (str, UserString))

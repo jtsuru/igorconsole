@@ -56,9 +56,6 @@ COMMAND_MAXLEN = int(config["Command"]["max_length"])
 del config, _
 HOME_DIR = os.path.expanduser("~")
 
-real_nums = (int, float, np.bool_, np.integer, np.floating)
-complex_nums = (complex, np.complexfloating)
-
 def object_type(obj):
     if not isinstance(obj, win32com.client.CDispatch):
         return type(obj)
@@ -219,8 +216,6 @@ class IgorApp:
             return returnvalue[0]
         else:
             return tuple(returnvalue)
-
-
 
     @property
     def fullpath(self):
@@ -406,7 +401,6 @@ class IgorApp:
     @property
     def panels(self):
         return [Panel(item, self) for item in self.window_names(csts.WindowType.Panel)]
-
     def display(self, ywaves, xwave=None, *,
                 winname=None, title=None, yaxis=None, xaxis=None,
                 frame=None, hide=False, host=None, win_location=None,
@@ -1026,8 +1020,8 @@ class Wave(IgorObjectBase):
     def _unit_to_int(dimension):
         d = dimension
         dmatch = lambda exp: re.match(exp, dimension, re.IGNORECASE)
-        if isinstance(d, int):
-            pass
+        if utils.isint(d):
+            d = int(d)
         elif dmatch("rows?"):
             d = 0
         elif dmatch("columns?"):
@@ -1191,7 +1185,7 @@ class Wave(IgorObjectBase):
         shape = self.shape
         length = shape[0] if shape else 0
         ndim = len(shape)
-        if isinstance(key, int) and ndim == 1 and isinstance(value, real_nums):
+        if utils.isint(key) and ndim == 1 and utils.isreal(value):
             if key >= length:
                 raise IndexError("Wave index out of range")
             elif key < -length:
@@ -1305,8 +1299,8 @@ class IgorObjectCollection(ABC, c_abc.Mapping):
         return (self[i] for i in range(len(self)-1, -1, -1))
 
     def get(self, key):
-        if isinstance(key, int) and 0 <= key < len(self):
-            return self[key]
+        if utils.isint(key) and 0 <= key < len(self):
+            return self[int(key)]
         if isinstance(key, str) and key in self:
             return self[key]
         return None
@@ -1425,8 +1419,6 @@ class WaveCollection(IgorObjectCollection):
     #    return result
 
     def _to_Series_dict(self, index="position"):
-        if not is_pandas_loaded:
-            raise NotImplementedError()
         return {name: wave.to_Series(index=index) for name, wave,
                 in zip(self.keys(), self.values())}
 
@@ -1460,9 +1452,9 @@ class VariableCollection(IgorObjectCollection):
             return self._add_numeric(name, value, overwrite=overwrite)
 
     def _add_numeric(self, name, value, overwrite=True):
-        if isinstance(value, real_nums):
+        if utils.isreal(value):
             dtype = dtypedict[np.float64]
-        elif isinstance(value, complex_nums):
+        elif utils.iscomplex(value):
             dtype = dtypedict[np.complex128]
         else:
             raise ValueError()
@@ -1559,7 +1551,7 @@ class Graph(Window):
         command_dict.update(kwargs)
         commands = []
         for key, val in command_dict.items():
-            val = int(val) if isinstance(val, bool) else val
+            val = int(val) if utils.isbool(val) else val
             val = '"{0}"'.format(val) if isinstance(val, str) else val
             commands.append("{0}={1}".format(key, val))
         self.modify_by_commands(commands)
@@ -1728,7 +1720,7 @@ class Graph(Window):
                 apd("/b=360")
             elif r == "8x":
                 apd("/b=576")
-            elif isinstance(r, int) and r in ress:
+            elif utils.isint(r) and (r in ress):
                 apd("/b={0}".format(r))
             else:
                 raise RuntimeError()
