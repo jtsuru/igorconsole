@@ -806,7 +806,12 @@ class Folder(IgorObjectBase):
 
         set_("reference", None)
         parent.delete_folder(name)
+    
+    f = subfolders
 
+    w = waves
+
+    v = variables
 
 class TempFolder(Folder):
     def __init__(self, app, name=None):
