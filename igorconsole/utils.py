@@ -1,6 +1,8 @@
 ﻿import functools
 import operator
 
+from collections import UserString
+
 import numpy as np
 
 prod = functools.partial(functools.reduce, operator.mul)
