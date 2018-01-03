@@ -1281,7 +1281,7 @@ class Wave(IgorObjectBase):
             raise AttributeError()
 
 
-class IgorObjectCollection(ABC, c_abc.Mapping):
+class IgorObjectCollectionBase(ABC, c_abc.Mapping):
     def __init__(self, reference, app):
         self.reference = reference
         self.app = app
@@ -1328,7 +1328,7 @@ class IgorObjectCollection(ABC, c_abc.Mapping):
         return [self[key] for key in self.keys()]
 
 
-class FolderCollection(IgorObjectCollection):
+class FolderCollection(IgorObjectCollectionBase):
     def __getitem__(self, key):
         """
         get folders by numeric index or by the folder name.
@@ -1347,7 +1347,7 @@ class FolderCollection(IgorObjectCollection):
         return FolderCollection(self.reference, self.app)
 
 
-class WaveCollection(IgorObjectCollection):
+class WaveCollection(IgorObjectCollectionBase):
     def __init__(self, reference, app, parent=None):
         super().__init__(reference, app)
         #相互参照を作らないように注意
@@ -1432,7 +1432,7 @@ class WaveCollection(IgorObjectCollection):
         return pd.concat(sdict.values(), **kwargs)
 
 
-class VariableCollection(IgorObjectCollection):
+class VariableCollection(IgorObjectCollectionBase):
     def __getitem__(self, key):
         """
         get variables by numeric index or by the folder name.
