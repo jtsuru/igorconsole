@@ -84,6 +84,9 @@ def object_type(obj):
 class IgorApp:
     "Managing connection to igor and sending message."
 
+    def __init__(self):
+        self.reference = None
+
     @classmethod
     def run(cls, visible=True):
         """Run a new igor instance and connect.
@@ -97,7 +100,7 @@ class IgorApp:
         result = IgorApp()
         com = win32com.client.Dispatch("IgorPro.Application")
         com.Visible = visible
-        result.com_instance = com
+        result.reference = com
         if 7.0 <= result.version < 7.07:
             # to prevent crashing
             time.sleep(5)
@@ -119,7 +122,7 @@ class IgorApp:
         result = IgorApp()
         com = win32com.client.GetActiveObject("IgorPro.Application")
         com.Visible = visible
-        result.com_instance = com
+        result.reference = com
         if 7.0 <= result.version < 7.07:
             # to prevent crashing
             time.sleep(5)
@@ -144,11 +147,11 @@ class IgorApp:
 
     def show(self):
         """Make igor window visible."""
-        self.com_instance.Visible = True
+        self.reference.Visible = True
 
     def hide(self):
         """Make igor window invisible."""
-        self.com_instance.Visible = False
+        self.reference.Visible = False
 
     """
     Igor API wrapper methods
@@ -156,7 +159,7 @@ class IgorApp:
     @property
     def get_application(self):
         """Reference to the com instance"""
-        return self.com_instance.Application()
+        return self.reference.Application()
 
     def execute(self, command, logged=False):
         """Execute igor raw command.
@@ -167,7 +170,7 @@ class IgorApp:
             histories (list of str): Output of the igor in the history area.
             results (list of str): Any strs created by sprintf.
         """
-        errcode, errmsg, history, result = self.com_instance.Execute2(not logged, False, command)
+        errcode, errmsg, history, result = self.reference.Execute2(not logged, False, command)
         if errcode:
             raise RuntimeError("Igor execute error " + str(errcode) + ": " + errmsg)
 
@@ -220,7 +223,7 @@ class IgorApp:
     @property
     def fullpath(self):
         "Path of the igor program."
-        return self.com_instance.FullName
+        return self.reference.FullName
 
     @property
     def name(self):
@@ -228,14 +231,14 @@ class IgorApp:
         Returns:
             str: 'Igor Pro'
         """
-        return self.com_instance.Name
+        return self.reference.Name
 
     @property
     def is_visible(self):
-        return self.com_instance.Visible
+        return self.reference.Visible
 
     def status1(self, int_):
-        return self.com_instance.Status1(int_)
+        return self.reference.Status1(int_)
 
     @property
     def version(self):
@@ -278,7 +281,7 @@ class IgorApp:
         if norm_newline_chr:
             text = text.replace("\r\n", "\n").replace("\r", "\n")\
                    .replace("\n", "\r\n")
-        self.com_instance.SendToHistory(CODEPAGE, text)
+        self.reference.SendToHistory(CODEPAGE, text)
 
     def new_experiment(self, only_when_saved=True):
         """ Create a new experiment file.
@@ -290,7 +293,7 @@ class IgorApp:
             warnings.warn("This file is not saved."
                           + "Please make 'True' only_when_saved flag.")
             return None
-        self.com_instance.NewExperiment(0)
+        self.reference.NewExperiment(0)
 
     def new_experiment_wo_save(self):
         """ Create a new experiment file.
@@ -300,7 +303,7 @@ class IgorApp:
 
 
     def load_experiment(self, filepath, loadtype=csts.LoadType.Open):
-        self.com_instance.LoadExperiment(0, loadtype, "", filepath)
+        self.reference.LoadExperiment(0, loadtype, "", filepath)
 
     def load_experiment_as_newfile(self, filepath):
         self.load_experiment(filepath, loadtype=csts.LoadType.Stationery)
@@ -310,7 +313,7 @@ class IgorApp:
 
     def _save(self, filepath, savetype=csts.SaveType.Save,
               filetype=csts.ExpFileType.Default, symbolicpathname=""):
-        self.com_instance.SaveExperiment(0, savetype, filetype,
+        self.reference.SaveExperiment(0, savetype, filetype,
                                          symbolicpathname, filepath)
 
     def save(self, filepath="", filetype=csts.ExpFileType.Default):
@@ -353,7 +356,7 @@ class IgorApp:
         elif filekind.lower() == "help":
             filekind = csts.FileKind.Help
 
-        self.com_instance.OpenFile(opentype, filekind, symbolicpathname, filepath)
+        self.reference.OpenFile(opentype, filekind, symbolicpathname, filepath)
 
     def quit(self, only_when_saved=True):
         if only_when_saved and self.is_experiment_modified:
@@ -361,9 +364,9 @@ class IgorApp:
                           + "Please make 'True' only_when_saved flag.")
             return None
         version = self.version
-        self.com_instance.Quit()
-        self.com_instance = None
-        del self.com_instance
+        self.reference.Quit()
+        self.reference = None
+        del self.reference
         if version >= 7.0:
             time.sleep(1)
 
@@ -652,7 +655,7 @@ class Folder(IgorObjectBase):
         set_ = lambda i, p: self.setattr(i, p)
         set_("app", app)
         if isinstance(reference, str):
-            reference = app.com_instance.DataFolder(reference)
+            reference = app.reference.DataFolder(reference)
         elif (not input_check) or object_type(reference) == "DataFolder":
             pass
         else:
@@ -665,7 +668,7 @@ class Folder(IgorObjectBase):
 
     @property
     def _data_folders_ref(self):
-        return self.app.com_instance.DataFolders(self.path)
+        return self.app.reference.DataFolders(self.path)
 
     def __repr__(self):
         return "<igorconsole.Folder at: {}>".format(self.path)
@@ -817,7 +820,7 @@ class TempFolder(Folder):
         self.setattr("current_dir", self.app.cwd)
         #このメソッドはFolders.add内で使用しているので、一次フォルダ作成にはAPIを直接呼ぶこと。
         overwrite = True
-        newf = self.app.com_instance.DataFolders("root:").Add(self._tmpfname, overwrite)
+        newf = self.app.reference.DataFolders("root:").Add(self._tmpfname, overwrite)
         super().setattr("reference", newf)
         super().chdir()
         return self
@@ -832,7 +835,7 @@ class Variable(IgorObjectBase):
         if isinstance(reference, str):
             path = reference.replace("'", "")
             parent = ":".join(path.split(":")[:-1]) + ":"
-            self.reference = app.com_instance.DataFolder(parent).Variable(path)
+            self.reference = app.reference.DataFolder(parent).Variable(path)
         elif (not input_check) or object_type(reference) == "Variable":
             self.reference = reference
         else:
@@ -979,7 +982,7 @@ class Lock(Variable):
         init_time = current_time()
         while current_time() - init_time < self.timeout:
             try:
-                newv = self.app.com_instance.DataFolder("root:")\
+                newv = self.app.reference.DataFolder("root:")\
                        .Variables.Add(self.__name, dtypedict[np.float64], overwrite)
                 break
             except com_error as e:
@@ -995,7 +998,7 @@ class Lock(Variable):
         self.reference = newv
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.app.com_instance.DataFolder("root:")\
+        self.app.reference.DataFolder("root:")\
               .Variables.Remove(self.__name)
 
 
@@ -1006,7 +1009,7 @@ class Wave(IgorObjectBase):
         if isinstance(reference, str):
             path = reference.replace("'", "")
             parent = ":".join(path.split(":")[:-1]) + ":"
-            self.reference = app.com_instance.DataFolder(parent).Wave(path)
+            self.reference = app.reference.DataFolder(parent).Wave(path)
         elif (not input_check) or object_type(reference) == "Wave":
             self.reference = reference
         else:
