@@ -137,9 +137,9 @@ igor.root.a = []
 igor.root.b = []
 igor.root.c = []
 igor.root.d = []
-igor.root.f = []
 igor.root.g = []
-waves = [igor.root.a, igor.root.b, igor.root.c, igor.root.d, igor.root.f, igor.root.g]
+igor.root.h = []
+waves = [igor.root.a, igor.root.b, igor.root.c, igor.root.d, igor.root.g, igor.root.h]
 igor.display([igor.root.b], igor.root.a)
 for i in tqdm(range(100)):
 	igor.append_to_waves(waves,[i/10 * math.cos(i)/10,i/10 * math.sin(i)/10,3,4,5,6])
@@ -149,9 +149,9 @@ igor.root.a = []
 igor.root.b = [1.0]
 igor.root.c = [1]
 igor.root.d = [1,2]
-igor.root.f = [1]
-igor.root.g = [1,2,3]
-waves = [igor.root.a, igor.root.b, igor.root.c, igor.root.d, igor.root.f, igor.root.g]
+igor.root.g = [1]
+igor.root.h = [1,2,3]
+waves = [igor.root.a, igor.root.b, igor.root.c, igor.root.d, igor.root.g, igor.root.h]
 igor.display([igor.root.b], igor.root.a)
 for i in tqdm(range(100)):
 	igor.append_to_waves(waves,[i/10 * math.cos(i)/10,i/10 * math.sin(i)/10,3,4,5,6])
