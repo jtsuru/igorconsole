@@ -86,6 +86,7 @@ class IgorApp:
 
     def __init__(self):
         self.reference = None
+        self._version = None
 
     @classmethod
     def run(cls, visible=True):
@@ -246,7 +247,9 @@ class IgorApp:
         Returns:
             float: version
         """
-        return self.status1(csts.Status.IgorVersion)
+        if self._version is None:
+            self._version = self.status1(csts.Status.IgorVersion)
+        return self._version
 
     @property
     def is_procedure_running(self):
@@ -282,6 +285,18 @@ class IgorApp:
             text = text.replace("\r\n", "\n").replace("\r", "\n")\
                    .replace("\n", "\r\n")
         self.reference.SendToHistory(CODEPAGE, text)
+    
+    def print(self, *objects, sep=" ", end="\n"):
+        write = self.write_history
+        firstline = True
+        for item in objects:
+            if firstline:
+                firstline = False
+            else:
+                write(sep)
+            write(str(item))
+        write(end)
+
 
     def new_experiment(self, only_when_saved=True):
         """ Create a new experiment file.
@@ -363,12 +378,16 @@ class IgorApp:
             warnings.warn("This file is not saved."
                           + "Please make 'True' only_when_saved flag.")
             return None
-        version = self.version
-        self.reference.Quit()
-        self.reference = None
-        del self.reference
-        if version >= 7.0:
-            time.sleep(1)
+        if self.version < 7.0:
+            self.reference.Quit()
+        else:
+            wmi = win32com.client.GetObject("winmgmts:")
+            number_of_igor_instance = lambda: len([item for item in wmi.InstancesOf("Win32_Process")
+                if item.Properties_("Name").Value == "Igor.exe"])
+            initial_instance_num = number_of_igor_instance()
+            self.reference.Quit()
+            while number_of_igor_instance() >= initial_instance_num > 0:
+                time.sleep(0)
 
 
     def quite_wo_save(self):
