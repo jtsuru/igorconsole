@@ -72,6 +72,16 @@ def to_igor_data_type_test():
     # implicit cast
     check(np.float16, 0x02)
 
+    #ctype
+    def c_check(ctype):
+        dtype = np.dtype(ctype)
+        size = dtype.itemsize
+        nptype = eval("np.int{}".format(size*8))
+        check(ctype, utils.to_igor_data_type(nptype))
+    c_check(np.intc)
+    c_check(np.intc)
+
+    #Error
     def fail_check(dtype):
         try:
             check(dtype, 0)
@@ -79,10 +89,11 @@ def to_igor_data_type_test():
             pass
         else:
             AssertionError()
-    #Error
     fail_check(np.bool_)
     fail_check(np.int64)
     fail_check(np.uint64)
+
+
 
 
 def to_list_test():
