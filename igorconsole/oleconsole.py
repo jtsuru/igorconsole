@@ -1820,8 +1820,152 @@ class Graph(Window):
 
 
 class Table(Window):
-    #not implemented yet
-    pass
+    def _raw_info_str(self, num):
+        command = 'fprintf 0,TableInfo("{0}",{1})'.format(self.name, num)
+        return self.app.execute(command)[1][0]
+
+    def _raw_info_list(self, num):
+        return self._raw_info_str(num).split(";")[:-1]
+
+    def _raw_info_dict(self, num):
+        return {item.split(":", 1)[0]: item.split(":", 1)[1]
+                for item in self._raw_info_list(num)}
+
+    def _column_name(self, num):
+        return self._raw_info_dict(num)["COLUMNNAME"]
+
+    @property
+    def column_num(self):
+        return int(self._raw_info_dict(-2)["COLUMNS"]) - 1
+
+    @property
+    def row_num(self):
+        return int(self._raw_info_dict(-2)["ROWS"])
+
+    @property
+    def _column_names(self):
+        return [self._column_name(i) for i in range(self.column_num)]
+
+    def _int_to_column_index(self, key: int):
+        length = self.column_num
+        if -length <= key < length:
+            return int(key)%length
+        else:
+            raise IndexError("key {} out of bounds.".format(key))
+
+    def _str_to_column_index(self, key: str):
+        key = str(key)
+        cnames = self._column_names
+        if "." not in key:
+            cnames = [cn.rsplit(".")[0] for cn in cnames]
+        unique_cnames = utils.to_unique_key(cnames)
+        if key in unique_cnames:
+            return unique_cnames.index(key)
+        if key in cnames:
+            return cnames.index(key)
+
+    def _slice_to_column_index(self, key):
+        length = self.column_num
+        start = 0 if key.start is None else max(-length, key.start)%length
+        stop = length if key.stop is None else min(key.stop, length)
+        stop = stop+length if stop < 0 else stop
+        step = 1 if key.step is None else key.step
+        return iter(range(start, stop, step))
+
+    def _to_column_index(self, key):
+        if utils.isint(key):
+            return self._int_to_column_index(key)
+        elif utils.isstr(key):
+            #access by column name
+            return self._str_to_column_index(key)
+        elif isinstance(key, slice):
+            #access by slice
+            return self._slice_to_column_index(key)
+        elif hasattr(key, "__iter__")\
+             and hasattr(key, "__len__")\
+             and len(key) == self.column_num\
+             and all(utils.isbool(item) for item in key):
+             #access by bool index
+            return (i for i, filt in enumerate(key) if filt)
+        elif hasattr(key, "__iter__"):
+            #access by fancy index. str list is acceptable
+            return iter(key)
+        else:
+            raise TypeError("Key must be a str or integer.")
+
+    def _unique_key(self):
+        return utils.to_unique_key(self._column_names)
+
+    def _column_wave(self, key):
+        key = self._to_column_index(key)
+        if isinstance(key, int):
+            return Wave(self._raw_info_dict(key)["WAVE"], self.app)
+        else:
+            return [Wave(self._raw_info_dict(item)["WAVE"], self.app)
+                    for item in key]
+
+    def __contains__(self, obj):
+        if utils.isstr(obj):
+            if obj in self.keys():
+                return True
+            if obj in self._column_names:
+                return True
+            return False
+        elif isinstance(obj, Wave):
+            for wv in self.waves:
+                if obj.is_(wv):
+                    return True
+            return False
+
+    def __len__(self):
+        #return len(self.keys())
+        # -> optimaized
+        return len(self._column_names)
+
+    def keys(self):
+        return self._unique_key()
+
+    def values(self):
+        return self.waves
+
+    def items(self):
+        keys = self.keys()
+        values = self.values()
+        return [(k, v) for k, v in zip(keys, values)]
+
+    @property
+    def _column_waves(self):
+        return [self._column_wave(i) for i in range(self.column_num)]
+
+    @property
+    def _waves_paths(self):
+        return set(self._raw_info_dict(i)["WAVE"] for i in range(self.column_num))
+
+    @property
+    def waves(self):
+        return [Wave(path, self.app) for path in self._wave_paths()]
+
+    def wave_at(self, column):
+        return self._column_wave(column)
+
+    def append(self, wave, *, return_key=True):
+        command = "AppendToTable/W={0} {1}".format(self.name, wave.quoted_path)
+        self.app.execute(command)
+        if return_key:
+            return self.keys()[-1]
+
+    def _to_Series_dict(self, index="position"):
+        return {name: wave.to_Series(index=index) for name, wave,
+                in zip(self._column_names, self._column_waves)}
+
+    def to_DataFrame(self, index="position", **kwargs):
+        import pandas as pd
+        if "axis" not in kwargs:
+            kwargs["axis"] = 1
+        sdict = self._to_Series_dict(index=index)
+        if "keys" not in kwargs:
+            kwargs["keys"] = sdict.keys()
+        return pd.concat(sdict.values(), **kwargs)
 
 
 class NoteBook(Window):
