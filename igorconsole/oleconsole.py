@@ -286,6 +286,8 @@ class IgorApp:
                    .replace("\n", "\r\n")
         self.reference.SendToHistory(CODEPAGE, text)
     
+    write = write_history
+    
     def print(self, *objects, sep=" ", end="\n"):
         write = self.write_history
         firstline = True
