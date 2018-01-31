@@ -7,6 +7,56 @@ import numpy as np
 
 prod = functools.partial(functools.reduce, operator.mul)
 
+def obvious_dtype(obj):
+    """Return a numpy dtype in obvious precision.
+    The precison of np.intc, np.int_, and so on depends on platform,
+    and sometimes these have the same precison.
+    This function returns spacific unique class for them.
+    
+    Args:
+        obj: np.dtype object or np.dtype.type
+    """
+    if issubclass(obj, np.number):
+        pass
+    elif issubclass(obj, np.dtype):
+        obj = obj
+    else:
+        raise ValueError("Not numpy dtype object.")
+
+    if issubclass(obj, np.bool_):
+        return np.bool_
+
+    if issubclass(obj, np.signedinteger):
+        dtypes = {
+            1: np.int8,
+            2: np.int16,
+            4: np.int32,
+            8: np.int64
+        }
+    elif issubclass(obj, np.unsinedinteger):
+        dtypes = {
+            1: np.uint8,
+            2: np.uint16,
+            4: np.uint32,
+            8: np.uint64
+        }
+    elif issubclass(obj, np.floating):
+        dtypes = {
+            2: np.float16,
+            4: np.float32,
+            8: np.float64
+        }
+    elif issubclass(obj, np.complexfloating):
+        dtypes = {
+            8: np.float64,
+            16: np.float128
+        }
+    size = np.dtype(obj).itemsize
+    try:
+        return dtypes[size]
+    except KeyError:
+        raise TypeError("Unknown dtype.")
+
 def to_list(val):
     if (not isinstance(val, str)) and hasattr(val, "__len__"):
         return list(val)
