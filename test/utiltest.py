@@ -54,6 +54,25 @@ def to_npdtype_test():
     assert utils.to_npdtype(0x60) == np.uint32
     assert utils.to_npdtype(0x00) == str
 
+def to_igor_data_type_test():
+    def check(dtype, int_):
+        print(dtype, utils.to_igor_data_type(dtype), int_)
+        assert utils.to_igor_data_type(dtype) == int_
+    #check(np.bool_, )
+    check(np.int8, 0x08)
+    check(np.int16, 0x10)
+    check(np.int32, 0x20)
+    #check(np.int64, )
+    check(np.uint8, 0x48)
+    check(np.uint16, 0x50)
+    check(np.uint32, 0x60)
+    #check(np.uint64, )
+    #check(np.float16, )
+    check(np.float32, 0x02)
+    check(np.float64, 0x04)
+    check(np.complex64, 0x01 | 0x02)
+    check(np.complex128, 0x01 | 0x04)
+
 
 def to_list_test():
     assert utils.to_list(None) == [None]
@@ -145,6 +164,7 @@ if __name__ == "__main__":
     prod_test()
     obvious_dtype_test()
     to_npdtype_test()
+    to_igor_data_type_test()
     to_list_test()
     isbool_test()
     isint_test()
