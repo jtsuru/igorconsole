@@ -1,4 +1,5 @@
-﻿import functools
+﻿import datetime
+import functools
 import operator
 
 from collections import UserString
@@ -93,6 +94,11 @@ def from_igor_complex_wave_order(array, dtype=np.complex128):
     result.imag = array[:, imag]
     return result
 
+def current_time(prefix, base=36):
+    result = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    result = np.base_repr(int(result), base)
+    return prefix + result
+
 def _str_insert(basestr, index, istr):
     return basestr[:index] + istr + basestr[index:]
 
@@ -111,10 +117,6 @@ def to_unique_key(strings):
                 candidate = _str_insert(s, s.rfind("."), "_{}".format(i))
             apd(candidate)
     return result
-def current_time(prefix, base=36):
-    result = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
-    result = np.base_repr(int(result), base)
-    return prefix + result
 
 BOOLS = (bool, np.bool_)
 INT_NUMS = (int, np.bool_, np.integer)
