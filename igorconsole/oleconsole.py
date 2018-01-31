@@ -1207,18 +1207,6 @@ class Wave(IgorObjectBase):
         for i, val in enumerate(obj):
             self.reference.SetNumericWavePointValue(length + i, val) 
 
-    def async_append(self, obj):
-        obj = utils.to_list(obj)
-        length = len(self)
-        path = self.quoted_path
-        async_execute = self.app.async_execute
-        command = "InsertPoints {0},{1},{2};"\
-                   .format(length, len(obj), path)
-        async_execute(command)
-        for i, item in enumerate(obj):
-            command = "{0}[{1}]={2}".format(path, length+i, item)
-            async_execute(command)
-
     def to_Series(self, index="position"):
         import pandas as pd
         index = index.lower()
