@@ -17,10 +17,10 @@ def obvious_dtype(obj):
     Args:
         obj: np.dtype object or np.dtype.type
     """
-    if issubclass(obj, np.number):
+    if isinstance(obj, type) and issubclass(obj, (np.number, np.bool_)):
         pass
-    elif issubclass(obj, np.dtype):
-        obj = obj
+    elif isinstance(obj, np.dtype):
+        obj = obj.type
     else:
         raise ValueError("Not numpy dtype object.")
 
@@ -34,7 +34,7 @@ def obvious_dtype(obj):
             4: np.int32,
             8: np.int64
         }
-    elif issubclass(obj, np.unsinedinteger):
+    elif issubclass(obj, np.unsignedinteger):
         dtypes = {
             1: np.uint8,
             2: np.uint16,
@@ -49,8 +49,8 @@ def obvious_dtype(obj):
         }
     elif issubclass(obj, np.complexfloating):
         dtypes = {
-            8: np.float64,
-            16: np.float128
+            8: np.complex64,
+            16: np.complex128
         }
     size = np.dtype(obj).itemsize
     try:

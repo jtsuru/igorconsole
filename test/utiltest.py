@@ -7,7 +7,39 @@ def prod_test():
     assert utils.prod(np.arange(1, 6)) == 120
 
 def obvious_dtype_test():
-    pass
+    def check(nptype):
+        assert utils.obvious_dtype(nptype) is nptype
+        assert utils.obvious_dtype(np.dtype(nptype)) is nptype
+    
+    nptype = [
+        np.bool_,
+        np.int8,
+        np.int16,
+        np.int32,
+        np.int64,
+        np.uint8,
+        np.uint16,
+        np.uint32,
+        np.uint64,
+        np.float16,
+        np.float32,
+        np.float64,
+        np.complex64,
+        np.complex128,
+    ]
+    for t in nptype:
+        check(t)
+    
+    def c_check(ctype):
+        dtype = np.dtype(ctype)
+        size = dtype.itemsize
+        nptype = eval("np.int{}".format(size*8))
+        assert utils.obvious_dtype(ctype) is nptype
+        assert utils.obvious_dtype(dtype) is nptype
+
+    ctype = [np.intc, np.intp]
+    for t in ctype:
+        c_check(t)
 
 def to_list_test():
     assert utils.to_list(None) == [None]
