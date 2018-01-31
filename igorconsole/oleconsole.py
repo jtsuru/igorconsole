@@ -424,6 +424,9 @@ class IgorApp:
     def panels(self):
         return [Panel(item, self) for item in self.window_names(csts.WindowType.Panel)]
 
+    def win_exists(self, name):
+        return bool(self.get_value('WinType("{0}")'.format(name)))
+
     def display(self, ywaves, xwave=None, *,
                 winname=None, title=None, yaxis=None, xaxis=None,
                 frame=None, hide=False, host=None, win_location=None,
@@ -488,11 +491,9 @@ class IgorApp:
         command = ""
         if winname is None:
             winname = datetime.datetime.now().strftime("icg_%Y%m%d%H%M%S%f")
-
-        winname_is_already_exists = bool(self.get_value('WinType("{0}")'.format(winname)))
         if overwrite:
             command += "DoWindow/K {};".format(winname)
-        elif winname_is_already_exists:
+        elif self.win_exists(winname)::
             raise RuntimeError("Graph already exists")
         command += "Display"
         if xaxis is not None:
@@ -1283,6 +1284,12 @@ class Wave(IgorObjectBase):
             return self.array == other.array
         else:
             return self.array == other
+
+    def is_(self, other):
+        return self.path == other.path
+
+    def is_equiv(self, other):
+        return np.all(self.array == other.array) and np.all(self.parray == other.parray)
 
     def __gt__(self, other):
         if isinstance(other, Wave):
