@@ -493,7 +493,7 @@ class IgorApp:
             winname = datetime.datetime.now().strftime("icg_%Y%m%d%H%M%S%f")
         if overwrite:
             command += "DoWindow/K {};".format(winname)
-        elif self.win_exists(winname)::
+        elif self.win_exists(winname):
             raise RuntimeError("Graph already exists")
         command += "Display"
         if xaxis is not None:
