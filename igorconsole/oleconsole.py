@@ -490,7 +490,7 @@ class IgorApp:
 
         command = ""
         if winname is None:
-            winname = datetime.datetime.now().strftime("icg_%Y%m%d%H%M%S%f")
+            winname = utils.current_time("icg_")
         if overwrite:
             command += "DoWindow/K {};".format(winname)
         elif self.win_exists(winname):
@@ -1570,7 +1570,53 @@ class Graph(Window):
     def __repr__(self):
         return "<igorconsole.Graph named {0}>".format(self.name)
 
-    def trace_names(self, normal=True, contour=True, hidden=False):
+    def __contains__(self, key):
+        if isinstance(key, str):
+            return key in self.keys()
+        elif isinstance(key, Wave):
+            for wave in self.values():
+                if key.is_(wave):
+                    return True
+            return False
+        else:
+            raise ValueError()
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __getitem__(self, key):
+        if utils.isint(key):
+            return self.trace_wave(int(key), True, True, True)
+        elif isinstance(key, str) and (key in self):
+            return Wave(self._to_fullpath(key), self.app)
+        elif isinstance(key, (np.ndarray, list, slice)):
+            result = np.array(self.values())[key]
+            return result.tolist()
+        raise KeyError("Trace {} is not in this graph.".format(key))
+
+    def keys(self):
+        return self.traces(True, True, True)
+
+    def values(self):
+        return list(self.trace_waves(True, True, True))
+
+    def items(self):
+        return [(key, self.trace_wave(key, True, True, True))
+                for key in self.keys()]
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __eq__(self, other):
+        raise NotImplementedError()
+
+    def traces(self, normal=True, contour=True, hidden=False):
         flags = 0
         if normal:
             flags += 0b1
@@ -1582,13 +1628,19 @@ class Graph(Window):
                    .format(self.name, flags))[1][0].split(";")[:-1]
         return listname
 
-    def traces(self, normal=True, contour=True, hidden=False):
-        def to_fullpath(trace_name):
-            command = 'fprintf 0, GetWavesDataFolder(TraceNameToWaveRef("{0}", "{1}"), 2)'\
-                      .format(self.name, trace_name)
-            return self.app.execute(command)[1][0]
-        names = self.trace_names(normal, contour, hidden)
-        return (Wave(to_fullpath(name), self.app) for name in names)
+    def _to_fullpath(self, trace_name):
+        command = 'fprintf 0, GetWavesDataFolder(TraceNameToWaveRef("{0}", "{1}"), 2)'\
+                    .format(self.name, trace_name)
+        return self.app.execute(command)[1][0]
+
+    def trace_wave(self, trace, normal=True, contour=True, hidden=False):
+        if utils.isint(trace):
+            trace = self.traces(normal, contour, hidden)[int(trace)]
+        return Wave(self._to_fullpath(trace), self.app)
+
+    def trace_waves(self, normal=True, contour=True, hidden=False):
+        names = self.traces(normal, contour, hidden)
+        return (Wave(self._to_fullpath(name), self.app) for name in names)
 
     #def remove_trace(self, waves):
     #    if isinstance(waves, Wave) or isinstance(waves, str):
@@ -1656,14 +1708,13 @@ class Graph(Window):
             style = json.load(f)
         self.modify_s(style)
 
-    def map_color(self, style:str, init_trace_num=None,
-                  last_trace_num=None, *args, **kwargs):
-        trace_names = self.trace_names()[init_trace_num:last_trace_num]
-        length = len(trace_names)
+    def map_color(self, style:str, traces=None, *args, **kwargs):
+        traces = self.traces() if traces is None else traces
+        length = len(traces)
         from . import colorfuncs
         grad_func = colorfuncs.gradation[style]
         trace_colors = {}
-        for i, trace in enumerate(trace_names):
+        for i, trace in enumerate(traces):
             color = tuple(grad_func(i/(length-1), *args, **kwargs))
             trace_colors["rgb({})".format(trace)] = color
         self.modify(trace_colors)
@@ -1862,6 +1913,26 @@ class Graph(Window):
         pyplot.gca().spines["top"].set_visible(False)
         pyplot.show()
 
+    def reorder(self, order, normal=True, contour=True, hidden=False):
+        """
+            Args:
+                order: [0,3,2,1] or ["tr0", "tr3", "tr2", "tr1"]
+        """
+        order_array = np.asrray(order)
+        if issubclass(order_array.dtype.type, np.integer):
+            traces = self.traces(normal, contour, hidden)
+            order = [traces[i] for i in order]
+        elif issubclass(order_array.dtype.type, np.str_):
+            pass
+        else:
+            raise ValueError()
+
+        revorder = reversed(order)
+        trace = next(revorder)
+        for item in reversed(order):
+            anchor, trace = trace, item
+            command = "ReorderTraces/W={0} {1},{{{2}}}".format(self.name, anchor, trace)
+            igor.execute(command)
 
 class Table(Window):
     def _raw_info_str(self, num):
