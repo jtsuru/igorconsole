@@ -66,6 +66,8 @@ def obvious_dtype(obj):
     except KeyError:
         raise TypeError("Unknown dtype.")
 
+def array_dtype(array):
+    return obvious_dtype(array.dtype)
 NP_DTYPE = {
     0x02: np.float32,
     0x01 | 0x02: np.complex64,
@@ -83,7 +85,14 @@ def to_npdtype(igor_data_type: int):
     return NP_DTYPE[igor_data_type]
 
 IGORDTYPE = {v:k for k, v in NP_DTYPE.items()}
+@functools.lru_cache(maxsize=30)
 def to_igor_data_type(np_dtype):
+    if isinstance(np_dtype, type) and issubclass(np_dtype, str):
+        return IGORDTYPE[str]
+    else:
+        return _to_igor_data_type_numeric(np_dtype)
+
+def _to_igor_data_type_numeric(np_dtype):
     np_dtype = _as_np_type(np_dtype)
     if np_dtype is np.float16:
         np_dtype = np.float32
@@ -93,7 +102,7 @@ def to_igor_data_type(np_dtype):
         returnval = IGORDTYPE[dtype]
     except KeyError:
         logger.error("Unsupported datatype. Cannot covert to igor data type.")
-        raise IgorTypeError("np.dtype, {}, cannot be converted to igor data type.")
+        raise IgorTypeError("np.dtype, {}, cannot be converted to igor data type.".format(np_dtype))
     return returnval
 
 

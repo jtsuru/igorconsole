@@ -34,20 +34,6 @@ from . import oleconsts as csts
 from . import utils
 
 CODEPAGE = 0
-dtypedict = {
-    0x02: np.float32,
-    0x01 | 0x02: np.complex64,
-    0x04: np.float64,
-    0x01 | 0x04: np.complex128,
-    0x08: np.int8,
-    0x10: np.int16,
-    0x20: np.int32,
-    0x48: np.uint8,
-    0x50: np.uint16,
-    0x60: np.uint32,
-    0x00: str
-}
-dtypedict.update({v:k for k, v in dtypedict.items()})
 config = configparser.ConfigParser()
 PATH, _ = os.path.split(__file__)
 config.read(PATH + "/config.ini")
@@ -911,7 +897,7 @@ class Variable(IgorObjectBase):
 
     @property
     def dtype(self):
-        return dtypedict[self.reference.DataType]
+        return utils.to_npdtype(self.reference.DataType)
 
     @property
     def value(self):
@@ -1050,7 +1036,7 @@ class Lock(Variable):
         while current_time() - init_time < self.timeout:
             try:
                 newv = self.app.reference.DataFolder("root:")\
-                       .Variables.Add(self.__name, dtypedict[np.float64], overwrite)
+                       .Variables.Add(self.__name, utils.to_igor_data_type(np.float64), overwrite)
                 break
             except com_error as e:
                 err_msg = e.args[2][2]
@@ -1166,7 +1152,7 @@ class Wave(IgorObjectBase):
 
     @property
     def dtype(self):
-        return dtypedict[self.reference.GetDimensions()[0]]
+        return utils.to_npdtype(self.reference.GetDimensions()[0])
 
     @property
     def array(self):
@@ -1181,7 +1167,7 @@ class Wave(IgorObjectBase):
         self.parent.make_wave(self.name, obj)
 
     def _array(self):
-        return self.reference.GetNumericWaveData(dtypedict[self.dtype])
+        return self.reference.GetNumericWaveData(utils.to_igor_data_type(self.dtype))
 
     def append(self, obj):
         length = self._length
@@ -1268,9 +1254,8 @@ class Wave(IgorObjectBase):
             self._length = len(wv)
             if issubclass(wv.dtype.type, np.complexfloating):
                 wv = utils.to_igor_complex_wave_order(wv)
-            array_dtype = wv.dtype.type
-            variant_array = comutils.to_variant_array(wv)
-            self.reference.SetNumericWaveData(dtypedict[array_dtype], variant_array)
+            nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(vw)
+            self.reference.SetNumericWaveData(utils.to_igor_data_type(nptype), variant_array)
 
     def __lt__(self, other):
         if isinstance(other, Wave):
@@ -1458,7 +1443,7 @@ class WaveCollection(IgorObjectCollectionBase):
         elif array_like is None:
             array_like = []
         array = np.asarray(array_like) if dtype is None else np.asarray(array_like, dtype=dtype)
-        dtype = dtypedict[array.dtype.type]
+        dtype = utils.to_igor_data_type(array.dtype.type)
         shape = np.zeros(4, dtype=int)
         ashape = array.shape
         shape[:len(ashape)] = ashape
@@ -1474,9 +1459,8 @@ class WaveCollection(IgorObjectCollectionBase):
         wv = self.reference.Add(name, dtype, *shape, overwrite)
         if issubclass(array.dtype.type, np.complexfloating):
             array = utils.to_igor_complex_wave_order(array)
-        array_dtype = array.dtype.type
-        variant_array = comutils.to_variant_array(array)
-        wv.SetNumericWaveData(dtypedict[array_dtype], variant_array)
+        nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(array)
+        wv.SetNumericWaveData(utils.to_igor_data_type(nptype), variant_array)
         result = Wave(wv, self.app, input_check=False)
         if _set_info:
             for i, scale, unit in zip(range(-1, 4), scales, units):
@@ -1529,9 +1513,9 @@ class VariableCollection(IgorObjectCollectionBase):
 
     def _add_numeric(self, name, value, overwrite=True):
         if utils.isreal(value):
-            dtype = dtypedict[np.float64]
+            dtype = utils.to_igor_data_type(np.float64)
         elif utils.iscomplex(value):
-            dtype = dtypedict[np.complex128]
+            dtype = utils.to_igor_data_type(np.complex128)
         else:
             raise ValueError()
         v = self.reference.Add(name, dtype, overwrite)
@@ -1539,7 +1523,7 @@ class VariableCollection(IgorObjectCollectionBase):
         return Variable(v, self.app, input_check=False)
 
     def _add_string(self, name, value, overwrite=True):
-        dtype = dtypedict[str]
+        dtype = utils.to_igor_data_type(str)
         v = self.reference.Add(name, dtype, overwrite)
         v.SetStringValue(CODEPAGE, value)
         return Variable(v, self.app, input_check=False)

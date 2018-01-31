@@ -4,6 +4,7 @@ import numpy as np
 from pythoncom import com_error
 
 import igorconsole
+from igorconsole.exception import *
 
 import logging
 from tqdm import tqdm
@@ -50,7 +51,7 @@ assert np.allclose(igor.root.wave2.array, array2d)
 assert np.allclose(igor.root.wave3.array, array4d)
 try:
     igor.root.asdfjkdlalsdf
-    raise AssertionError
+    raise AssertionError()
 except AttributeError:
     pass
 
@@ -107,6 +108,16 @@ complex_2d = np.arange(100).reshape(10, 10)
 complex_2d = complex_2d + 1J*complex_2d
 igor.root.comp2d = complex_2d
 assert (igor.root.comp2d.array == complex_2d).all()
+
+try:
+    igor.root.intc = np.arange(10, dtype=np.intc)
+except IgorTypeError:
+    pass
+try:
+    igor.root.intp = np.arange(10, dtype=np.intp)
+except IgorTypeError:
+    pass
+igor.root.nppow = np.arange(10) ** 2
 
 #folder test
 igor.root.make_folder("abc")
