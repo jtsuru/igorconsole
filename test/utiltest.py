@@ -41,6 +41,20 @@ def obvious_dtype_test():
     for t in ctype:
         c_check(t)
 
+def to_npdtype_test():
+    assert utils.to_npdtype(0x02) == np.float32
+    assert utils.to_npdtype(0x01 | 0x02) == np.complex64
+    assert utils.to_npdtype(0x04) == np.float64
+    assert utils.to_npdtype(0x01 | 0x04) == np.complex128
+    assert utils.to_npdtype(0x08) == np.int8
+    assert utils.to_npdtype(0x10) == np.int16
+    assert utils.to_npdtype(0x20) == np.int32
+    assert utils.to_npdtype(0x48) == np.uint8
+    assert utils.to_npdtype(0x50) == np.uint16
+    assert utils.to_npdtype(0x60) == np.uint32
+    assert utils.to_npdtype(0x00) == str
+
+
 def to_list_test():
     assert utils.to_list(None) == [None]
     assert utils.to_list(1.2) == [1.2]
@@ -130,6 +144,7 @@ def isstr_test():
 if __name__ == "__main__":
     prod_test()
     obvious_dtype_test()
+    to_npdtype_test()
     to_list_test()
     isbool_test()
     isint_test()

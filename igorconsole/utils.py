@@ -58,6 +58,27 @@ def obvious_dtype(obj):
     except KeyError:
         raise TypeError("Unknown dtype.")
 
+NP_DTYPE = {
+    0x02: np.float32,
+    0x01 | 0x02: np.complex64,
+    0x04: np.float64,
+    0x01 | 0x04: np.complex128,
+    0x08: np.int8,
+    0x10: np.int16,
+    0x20: np.int32,
+    0x48: np.uint8,
+    0x50: np.uint16,
+    0x60: np.uint32,
+    0x00: str
+}
+def to_npdtype(igor_data_type: int):
+    return NP_DTYPE[igor_data_type]
+
+IGORDTYPE = {v:k for k, v in NP_DTYPE.items()}
+def to_igor_data_type(np_dtype):
+    return IGORDTYPE[obvious_dtype(np_dtype)]
+
+
 def to_list(val):
     if (not isinstance(val, str)) and hasattr(val, "__len__"):
         return list(val)
