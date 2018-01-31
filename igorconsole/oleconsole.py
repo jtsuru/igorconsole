@@ -423,6 +423,7 @@ class IgorApp:
     @property
     def panels(self):
         return [Panel(item, self) for item in self.window_names(csts.WindowType.Panel)]
+
     def display(self, ywaves, xwave=None, *,
                 winname=None, title=None, yaxis=None, xaxis=None,
                 frame=None, hide=False, host=None, win_location=None,
@@ -541,6 +542,42 @@ class IgorApp:
                     oneline += commands.pop() +";"
                 self.execute(oneline)
         return Graph(winname, self)
+
+    def edit(self, waves, *, winname=None, title=None, hide=False, host=None,
+             win_location=None, unit=None, win_behavior=0, overwrite=False):
+        commands = []
+        oneline = []
+        apd = oneline.append
+
+        if winname is None:
+            winname = utils.current_time("ict_")
+        if overwrite:
+            commands.append("DoWindow/K {};".format(winname))
+        elif self.win_exists(winname):
+            raise RuntimeError("Table already exists")
+
+        apd("Edit")
+        if hide:
+            apd("/HIDE=1")
+        if host is not None:
+            apd("/HOST={0}".format(host.name))
+        if unit is not None:
+            if unit.lower() == "inch":
+                apd("/I")
+            elif unit.lower() == "cm":
+                apd("/M")
+        apd("/K={}".format(win_behavior))
+        if win_location is not None:
+            apd("/W=({0}, {1}, {2}, {3})".format(*win_location))
+        if title is not None:
+            apd(' as "{}";'.format(title))
+        commands.append("".join(oneline))
+        for com in commands:
+            self.execute(com)
+        result = Table(winname, self)
+        for w in waves:
+            result.append(w, return_key=False)
+        return result
 
     def _newpath(self, path: str):
         path = path.replace("\\", ":").replace("/", ":") + ":"
