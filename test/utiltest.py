@@ -1,4 +1,5 @@
 from igorconsole import utils
+from igorconsole.exception import *
 
 import numpy as np
 
@@ -56,22 +57,32 @@ def to_npdtype_test():
 
 def to_igor_data_type_test():
     def check(dtype, int_):
-        print(dtype, utils.to_igor_data_type(dtype), int_)
         assert utils.to_igor_data_type(dtype) == int_
-    #check(np.bool_, )
     check(np.int8, 0x08)
     check(np.int16, 0x10)
     check(np.int32, 0x20)
-    #check(np.int64, )
     check(np.uint8, 0x48)
     check(np.uint16, 0x50)
     check(np.uint32, 0x60)
-    #check(np.uint64, )
-    #check(np.float16, )
     check(np.float32, 0x02)
     check(np.float64, 0x04)
     check(np.complex64, 0x01 | 0x02)
     check(np.complex128, 0x01 | 0x04)
+
+    # implicit cast
+    check(np.float16, 0x02)
+
+    def fail_check(dtype):
+        try:
+            check(dtype, 0)
+        except IgorTypeError:
+            pass
+        else:
+            AssertionError()
+    #Error
+    fail_check(np.bool_)
+    fail_check(np.int64)
+    fail_check(np.uint64)
 
 
 def to_list_test():

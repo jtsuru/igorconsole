@@ -1,12 +1,25 @@
 ﻿import datetime
 import functools
+import logging
 import operator
 
 from collections import UserString
 
 import numpy as np
 
+from .exception import IgorTypeError
+
+logger = logging.getLogger(__name__)
+
 prod = functools.partial(functools.reduce, operator.mul)
+
+def _as_np_type(obj):
+    if isinstance(obj, type) and issubclass(obj, (np.number, np.bool_)):
+        return obj
+    elif isinstance(obj, np.dtype):
+        return obj.type
+    else:
+        raise ValueError("Not numpy dtype object.")
 
 def obvious_dtype(obj):
     """Return a numpy dtype in obvious precision.
@@ -17,13 +30,8 @@ def obvious_dtype(obj):
     Args:
         obj: np.dtype object or np.dtype.type
     """
-    if isinstance(obj, type) and issubclass(obj, (np.number, np.bool_)):
-        pass
-    elif isinstance(obj, np.dtype):
-        obj = obj.type
-    else:
-        raise ValueError("Not numpy dtype object.")
 
+    obj = _as_np_type(obj)
     if issubclass(obj, np.bool_):
         return np.bool_
 
@@ -76,7 +84,17 @@ def to_npdtype(igor_data_type: int):
 
 IGORDTYPE = {v:k for k, v in NP_DTYPE.items()}
 def to_igor_data_type(np_dtype):
-    return IGORDTYPE[obvious_dtype(np_dtype)]
+    np_dtype = _as_np_type(np_dtype)
+    if np_dtype is np.float16:
+        np_dtype = np.float32
+        logger.info("implicit cast from float16 to float32.")
+    dtype = obvious_dtype(np_dtype)
+    try:
+        returnval = IGORDTYPE[dtype]
+    except KeyError:
+        logger.error("Unsupported datatype. Cannot covert to igor data type.")
+        raise IgorTypeError("np.dtype, {}, cannot be converted to igor data type.")
+    return returnval
 
 
 def to_list(val):
