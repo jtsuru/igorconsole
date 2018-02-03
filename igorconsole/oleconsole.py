@@ -773,8 +773,10 @@ class Folder(IgorObjectBase):
     def __setitem__(self, key, val):
         if self.waves.addable(val):
             self.waves[key] = val
-        elif isinstance(val, str) or (not hasattr(val, "__len__")):
-            self.make_variable(key, val)
+        elif self.variables.addable(val):
+            self.variables[key] = val
+        #elif isinstance(val, str) or (not hasattr(val, "__len__")):
+        #    self.make_variable(key, val)
         #elif isinstance(val, Wave):
         #    self.app.execute("Duplicate/O {0} {1}'{2}'".format(val.quoted_path, self.quoted_path, key))
         elif isinstance(val, dict) or isinstance(val, c_abc.Mapping):
@@ -1023,6 +1025,9 @@ class Variable(IgorObjectBase):
             return obj.value ** self.value
         else:
             return obj ** self.value
+
+    def _to_igorvariable(self):
+        return self.value
 
 class Lock(Variable):
     def __init__(self, app, *, timeout=60):
@@ -1519,11 +1524,6 @@ class WaveCollection(IgorObjectCollectionBase):
             return
         if hasattr(val, "__iter__") and hasattr(val, "__getitem__"):
             self.add(key, val, overwrite=True)
-    
-    def __setattr__(self, name, val):
-        self.__setitem__(name, val)
-
-
             
 
 class VariableCollection(IgorObjectCollectionBase):
@@ -1564,6 +1564,19 @@ class VariableCollection(IgorObjectCollectionBase):
 
     def copy(self):
         return WaveCollection(self.reference, self.app)
+    
+    def addable(self, obj):
+        if hasattr(obj, "_to_igorvariable"):
+            return True
+        if utils.isstr(obj) or utils.isreal(obj) or utils.iscomplex(obj):
+            return True
+
+    def __setitem__(self, key, val):
+        if not utils.isstr(key):
+            raise TypeError("name of the igor variable must be a string.")
+        if not self.addable(val):
+            raise TypeError("Cannot convert to igor variable.")
+        self.add(key, val, overwrite=True)
 
 
 class Window:
