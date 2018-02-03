@@ -17,7 +17,7 @@ import tempfile
 import time
 import warnings
 
-from abc import ABC, abstractclassmethod
+from abc import ABC, abstractmethod
 from collections import abc as c_abc
 
 
@@ -771,10 +771,12 @@ class Folder(IgorObjectBase):
                 waves.add(str(key), value, overwrite=overwrite)
 
     def __setitem__(self, key, val):
-        if isinstance(val, str) or (not hasattr(val, "__len__")):
+        if self.waves.addable(val):
+            self.waves[key] = val
+        elif isinstance(val, str) or (not hasattr(val, "__len__")):
             self.make_variable(key, val)
-        elif isinstance(val, Wave):
-            self.app.execute("Duplicate/O {0} {1}'{2}'".format(val.quoted_path, self.quoted_path, key))
+        #elif isinstance(val, Wave):
+        #    self.app.execute("Duplicate/O {0} {1}'{2}'".format(val.quoted_path, self.quoted_path, key))
         elif isinstance(val, dict) or isinstance(val, c_abc.Mapping):
             self.make_folder(key, overwrite=True)
             f = self.subfolders[key]
@@ -786,8 +788,8 @@ class Folder(IgorObjectBase):
                 f = self.subfolders[key]
                 for column in val.columns:
                     f[str(column)] = val[column]
-        elif hasattr(val, "__iter__") and hasattr(val, "__getitem__"):
-            self.make_wave(key, val)
+        #elif hasattr(val, "__iter__") and hasattr(val, "__getitem__"):
+        #    self.make_wave(key, val)
         else:
             raise ValueError()
 
@@ -1339,9 +1341,17 @@ class Wave(IgorObjectBase):
             return self.array.__getattribute__(key)
         else:
             raise AttributeError()
+    
+    def _to_igorwave(self):
+        array = self.array
+        scalings = [self.get_scaling(i) for i in range(-1, 4)]
+        units = [self.get_unit(i) for i in range(-1, 4)]
+        return array, scalings, units
 
 
-class IgorObjectCollectionBase(ABC, c_abc.Mapping):
+
+
+class IgorObjectCollectionBase(ABC, c_abc.Mapping): #->MutableMapping
     def __init__(self, reference, app):
         self.reference = reference
         self.app = app
@@ -1365,17 +1375,18 @@ class IgorObjectCollectionBase(ABC, c_abc.Mapping):
             return self[key]
         return None
 
-    @abstractclassmethod
+    @abstractmethod
     def copy(self):
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def add(self, name, overwrite=False):
         pass
 
-    #@property
-    #def names(self):
-    #    return (ref.Name for ref in self.reference)
+    # add later
+    #@abstractmethod
+    #def addable(self, obj):
+    #    pass
 
     def keys(self):
         return {item.Name for item in self.reference}
@@ -1441,6 +1452,7 @@ class WaveCollection(IgorObjectCollectionBase):
             array_like = np.zeros(shape)
         elif array_like is None:
             array_like = []
+        #convert to np.array once to determine dtype and shape.
         array = np.asarray(array_like) if dtype is None else np.asarray(array_like, dtype=dtype)
         dtype = utils.to_igor_data_type(array.dtype.type)
         shape = np.zeros(4, dtype=int)
@@ -1470,13 +1482,6 @@ class WaveCollection(IgorObjectCollectionBase):
     def copy(self):
         return WaveCollection(self.reference, self.app, self.parent)
 
-    #def _to_dict(self, parray=False):
-    #    result = {wave.name: wave.array for wave in self}
-    #    if parray:
-    #        p_dict = {wave.name + "_pos": wave.parray for wave in self}
-    #        result.update(p_dict)
-    #    return result
-
     def _to_Series_dict(self, index="position"):
         return {name: wave.to_Series(index=index) for name, wave,
                 in zip(self.keys(), self.values())}
@@ -1490,6 +1495,36 @@ class WaveCollection(IgorObjectCollectionBase):
             kwargs["keys"] = sdict.keys()
         return pd.concat(sdict.values(), **kwargs)
 
+    def addable(self, obj):
+        #if wave or convartable
+        if hasattr(obj, "_to_igorwave"):
+            return True
+        #pandas.DataFrame
+        if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
+            return False
+        #if list or array
+        elif not utils.isstr(obj) and hasattr(obj, "__iter__") and hasattr(obj, "__getitem__"):
+            return True
+        return False
+    
+    def __setitem__(self, key, val):
+        if not utils.isstr(key):
+            raise TypeError("wave name must be a string.")
+        if not self.addable(val):
+            raise TypeError("This object cannot be converted to igor wave.")
+        if hasattr(val, "_to_igorwave"):
+            array, scalings, units = val._to_igorwave()
+            #scalings and units are not implemented yet
+            self.add(key, array, shape=array.shape, overwrite=True, dtype=array.dtype)
+            return
+        if hasattr(val, "__iter__") and hasattr(val, "__getitem__"):
+            self.add(key, val, overwrite=True)
+    
+    def __setattr__(self, name, val):
+        self.__setitem__(name, val)
+
+
+            
 
 class VariableCollection(IgorObjectCollectionBase):
     def __getitem__(self, key):
