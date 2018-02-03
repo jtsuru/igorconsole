@@ -732,7 +732,7 @@ class Folder(IgorObjectBase):
             raise AttributeError()
         if key in self:
             return self.__getitem__(key)
-        raise AttributeError()
+        raise AttributeError("{} is not in this folder.".format(key))
 
     def __setattr__(self, item, val):
         if item in self.subfolders:
@@ -1426,7 +1426,7 @@ class FolderCollection(IgorObjectCollectionBase):
                 for column in val.columns:
                     f[str(column)] = val[column]
             return
-        if hasattr(obj, "_to_igorfolder"):
+        if hasattr(val, "_to_igorfolder"):
             val = val._to_igorfolder()
         #val must be a dict
         f = self.add(key, overwrite=True)
@@ -1518,9 +1518,15 @@ class WaveCollection(IgorObjectCollectionBase):
         #pandas.DataFrame
         if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
             return False
+
         #if list or array
         elif not utils.isstr(obj) and hasattr(obj, "__iter__") and hasattr(obj, "__getitem__"):
-            return True
+            if isinstance(obj, (list, tuple, np.ndarray)):
+                return True
+            if str(obj.__class__) == "<class 'pandas.core.series.Series'>":
+                return True
+            if isinstance(obj, (dict, c_abc.Mapping)):
+                return False
         return False
     
     def __setitem__(self, key, val):
