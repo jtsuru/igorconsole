@@ -381,7 +381,7 @@ class IgorApp:
                 time.sleep(0)
 
 
-    def quite_wo_save(self):
+    def quit_wo_save(self):
         self.quit(only_when_saved=False)
 
     @property
@@ -774,8 +774,7 @@ class Folder(IgorObjectBase):
         if isinstance(val, str) or (not hasattr(val, "__len__")):
             self.make_variable(key, val)
         elif isinstance(val, Wave):
-            self.app.execute("Duplicate/O {0} {1}'{2}'")\
-            .format(val.quoted_path, self.quoted_path, key)
+            self.app.execute("Duplicate/O {0} {1}'{2}'".format(val.quoted_path, self.quoted_path, key))
         elif isinstance(val, dict) or isinstance(val, c_abc.Mapping):
             self.make_folder(key, overwrite=True)
             f = self.subfolders[key]
