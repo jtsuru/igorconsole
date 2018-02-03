@@ -761,39 +761,15 @@ class Folder(IgorObjectBase):
             raise TypeError("key should be a string.")
         raise KeyError("Object {} not found.".format(key))
 
-    def from_dict(self, dict_like, overwrite=False):
-        waves = self.waves
-        variables = self.variables
-        for key, value in dict_like.items():
-            if isinstance(value, str) or (not hasattr(value, "__len__")):
-                variables.add(str(key), value, overwrite=overwrite)
-            elif hasattr(value, "__iter__") and hasattr(value, "__getitem__"):
-                waves.add(str(key), value, overwrite=overwrite)
-
     def __setitem__(self, key, val):
-        if self.waves.addable(val):
+        if WaveCollection.addable(val):
             self.waves[key] = val
-        elif self.variables.addable(val):
+        elif VariableCollection.addable(val):
             self.variables[key] = val
-        #elif isinstance(val, str) or (not hasattr(val, "__len__")):
-        #    self.make_variable(key, val)
-        #elif isinstance(val, Wave):
-        #    self.app.execute("Duplicate/O {0} {1}'{2}'".format(val.quoted_path, self.quoted_path, key))
-        elif isinstance(val, dict) or isinstance(val, c_abc.Mapping):
-            self.make_folder(key, overwrite=True)
-            f = self.subfolders[key]
-            f.from_dict(val)
-        elif str(val.__class__) == "<class 'pandas.core.frame.DataFrame'>":
-            import pandas as pd
-            if isinstance(val, pd.DataFrame):
-                self.make_folder(key, overwrite=True)
-                f = self.subfolders[key]
-                for column in val.columns:
-                    f[str(column)] = val[column]
-        #elif hasattr(val, "__iter__") and hasattr(val, "__getitem__"):
-        #    self.make_wave(key, val)
+        elif FolderCollection.addable(val):
+            self.subfolders[key] = val
         else:
-            raise ValueError()
+            raise ValueError("Cannot convert to igor object.")
 
     def __contains__(self, name):
         ref = self.reference
@@ -1421,7 +1397,41 @@ class FolderCollection(IgorObjectCollectionBase):
 
     def copy(self):
         return FolderCollection(self.reference, self.app)
-
+    
+    @staticmethod
+    def addable(obj):
+        if hasattr(obj, "_to_igorfolder"):
+            return True
+        if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
+            return True
+        if isinstance(obj, dict) or isinstance(obj, c_abc.Mapping):
+            for i, v in obj.items():
+                if not utils.isstr(i):
+                    return False
+                if not (WaveCollection.addable(v) or VariableCollection.addable(v) or FolderCollection.addable(v)):
+                    return False
+            return True
+        return False
+    
+    def __setitem__(self, key, val):
+        if not utils.isstr(key):
+            raise TypeError("folder name must be a string.")
+        if not type(self).addable(val):
+            raise TypeError("cannot convert to igor folder structure.")
+        if str(val.__class__) == "<class 'pandas.core.frame.DataFrame'>":
+            import pandas as pd
+            if isinstance(val, pd.DataFrame):
+                self.add(key, overwrite=True)
+                f = self[key]
+                for column in val.columns:
+                    f[str(column)] = val[column]
+            return
+        if hasattr(obj, "_to_igorfolder"):
+            val = val._to_igorfolder()
+        #val must be a dict
+        f = self.add(key, overwrite=True)
+        for i, v in val.items():
+            f[i] = v    
 
 class WaveCollection(IgorObjectCollectionBase):
     def __init__(self, reference, app, parent=None):
@@ -1500,7 +1510,8 @@ class WaveCollection(IgorObjectCollectionBase):
             kwargs["keys"] = sdict.keys()
         return pd.concat(sdict.values(), **kwargs)
 
-    def addable(self, obj):
+    @staticmethod
+    def addable(obj):
         #if wave or convartable
         if hasattr(obj, "_to_igorwave"):
             return True
@@ -1515,7 +1526,7 @@ class WaveCollection(IgorObjectCollectionBase):
     def __setitem__(self, key, val):
         if not utils.isstr(key):
             raise TypeError("wave name must be a string.")
-        if not self.addable(val):
+        if not type(self).addable(val):
             raise TypeError("This object cannot be converted to igor wave.")
         if hasattr(val, "_to_igorwave"):
             array, scalings, units = val._to_igorwave()
@@ -1565,7 +1576,8 @@ class VariableCollection(IgorObjectCollectionBase):
     def copy(self):
         return WaveCollection(self.reference, self.app)
     
-    def addable(self, obj):
+    @staticmethod
+    def addable(obj):
         if hasattr(obj, "_to_igorvariable"):
             return True
         if utils.isstr(obj) or utils.isreal(obj) or utils.iscomplex(obj):
@@ -1574,7 +1586,7 @@ class VariableCollection(IgorObjectCollectionBase):
     def __setitem__(self, key, val):
         if not utils.isstr(key):
             raise TypeError("name of the igor variable must be a string.")
-        if not self.addable(val):
+        if not type(self).addable(val):
             raise TypeError("Cannot convert to igor variable.")
         self.add(key, val, overwrite=True)
 
