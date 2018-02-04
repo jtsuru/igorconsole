@@ -1310,7 +1310,7 @@ class Wave(IgorObjectBase):
             raise AttributeError()
     
     def __floordiv__(self, dest):
-        if isinstance(self, Wave):
+        if isinstance(dest, Wave):
             return self.array // dest.array
         else:
             return self.array //dest
@@ -1328,7 +1328,7 @@ class Wave(IgorObjectBase):
         return np.dot(dest, self.array)
 
     def __mod__(self, dest):
-        if isinstance(self, Wave):
+        if isinstance(dest, Wave):
             return self.array % dest.array
         else:
             return self.array % dest
