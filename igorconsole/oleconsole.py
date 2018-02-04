@@ -531,7 +531,7 @@ class IgorApp:
             while commands:
                 oneline = ""
                 while commands and len(oneline) < 300:
-                    oneline += commands.pop() +";"
+                    oneline += commands.pop(0) +";"
                 self.execute(oneline)
         return Graph(winname, self)
 
