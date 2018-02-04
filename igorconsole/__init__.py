@@ -20,5 +20,5 @@ if platform.system() == "Windows":
     __all__ = ["IgorApp", "connect", "run", "start", "consts"]
 
 else:
-    raise NotImplementedError
+    raise NotImplementedError()
 

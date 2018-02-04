@@ -5,7 +5,6 @@ Todo:
     * Make table classes
 """
 import configparser
-import datetime
 import itertools
 import json
 import logging
@@ -844,8 +843,7 @@ class TempFolder(Folder):
     def __init__(self, app, name=None):
         super().__init__(None, app, input_check=False)
         if name is None:
-            #ここで作ったnameは被らないと信じる。
-            name = datetime.datetime.now().strftime("__ictmp_%Y%m%d%H%M%S%f")
+            name = utils.current_time("__ictf_")
         self.setattr("_tmpfname", name)
 
     def __enter__(self):
@@ -1236,7 +1234,7 @@ class Wave(IgorObjectBase):
             self._length = len(wv)
             if issubclass(wv.dtype.type, np.complexfloating):
                 wv = utils.to_igor_complex_wave_order(wv)
-            nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(vw)
+            nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(wv)
             self.reference.SetNumericWaveData(utils.to_igor_data_type(nptype), variant_array)
 
     def __lt__(self, other):
@@ -1633,7 +1631,7 @@ class Graph(Window):
                     return True
             return False
         else:
-            raise ValueError()
+            raise TypeError("Must be a string or wave.")
 
     def __len__(self):
         return len(self.keys())
