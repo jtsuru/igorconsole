@@ -64,6 +64,25 @@ def object_type(obj):
         return "Variable"
     raise TypeError()
 
+import numpy as np
+
+class IgorWaveConvertableNdArray(np.ndarray):
+    def __new__(cls, array, scalings=None, units=None):
+        if scalings is None or units is None:
+            array, scalings, units = array._to_igorwave()
+        result = np.asarray(array).view(cls)
+        result.scalings = scalings
+        result.units = units
+        return result
+    
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.scalings = getattr(obj, "scalings", None)
+        self.units = getattr(obj, "units", None)
+    
+    def _to_igorwave(self):
+        return np.asarray(self), self.scalings, self.units
 
 
 class IgorApp:
