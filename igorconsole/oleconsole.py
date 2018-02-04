@@ -1275,26 +1275,18 @@ class Wave(IgorObjectBase):
 
     def __add__(self, dest):
         if isinstance(dest, Wave):
-            sv = self.array
-            sv += dest.array
-            return sv
+            return self.array + dest.array
         else:
-            sv = self.array
-            sv += dest
-            return sv
+            return self.array + dest
 
     def __radd__(self, dest):
         return self.__add__(dest)
 
     def __mul__(self, dest):
         if isinstance(dest, Wave):
-            sv = self.array
-            sv *= dest.array
-            return sv
+            return self.array * dest.array
         else:
-            sv = self.array
-            sv *= dest
-            return sv
+            return self.array * dest
 
     def __rmul__(self, dest):
         return self.__mul__(dest)
@@ -1304,13 +1296,9 @@ class Wave(IgorObjectBase):
 
     def __truediv__(self, dest):
         if isinstance(dest, Wave):
-            sv = self.array
-            sv /= dest.array
-            return sv
+            return self.array / dest.array
         else:
-            sv = self.array
-            sv /= dest
-            return sv
+            return self.array /dest
 
     def __rtruediv__(self, dest):
         return dest / self.array
@@ -1321,6 +1309,33 @@ class Wave(IgorObjectBase):
         else:
             raise AttributeError()
     
+    def __floordiv__(self, dest):
+        if isinstance(self, Wave):
+            return self.array // dest.array
+        else:
+            return self.array //dest
+    
+    def __rfloordiv__(self, dest):
+        return dist // self.array
+
+    def __matmul__(self, dest):
+        if isinstance(dest, Wave):
+            return np.dot(self.array, dest.array)
+        else:
+            return np.dot(self.array, dest)
+
+    def __rmatmul__(self, dest):
+        return np.dot(dest, self.array)
+
+    def __mod__(self, dest):
+        if isinstance(self, Wave):
+            return self.array % dest.array
+        else:
+            return self.array % dest
+
+    def __rmod__(self, dest):
+        return dest % self.array
+
     def _to_igorwave(self):
         array = self.array
         scalings = [self.get_scaling(i) for i in range(-1, 4)]
