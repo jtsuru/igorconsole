@@ -32,6 +32,7 @@ import win32com.client
 from . import comutils
 from . import oleconsts as csts
 from . import utils
+from .igorconvertable import IgorWaveConvertableNdArray
 
 CODEPAGE = 0
 config = configparser.ConfigParser()
@@ -66,25 +67,6 @@ def object_type(obj):
     raise TypeError()
 
 import numpy as np
-
-class IgorWaveConvertableNdArray(np.ndarray):
-    def __new__(cls, array, scalings=None, units=None):
-        if scalings is None or units is None:
-            array, scalings, units = array._to_igorwave()
-        result = np.asarray(array).view(cls)
-        result.scalings = scalings
-        result.units = units
-        return result
-    
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        self.scalings = getattr(obj, "scalings", None)
-        self.units = getattr(obj, "units", None)
-    
-    def _to_igorwave(self):
-        return np.asarray(self), self.scalings, self.units
-
 
 class IgorApp:
     "Managing connection to igor and sending message."
@@ -1286,7 +1268,7 @@ class Wave(IgorObjectBase):
         if isinstance(other, Wave):
             array = operator(array, other.array)
         elif hasattr(other, "_to_igorwave"):
-            other_array, _, _ = other._to_igrwave()
+            other_array, _, _ = other._to_igorwave()
             array = operator(array, other_array)
         else:
             array = operator(array, other)
@@ -1296,7 +1278,7 @@ class Wave(IgorObjectBase):
         array, scalings, units = self._to_igorwave()
         if hasattr(other, "_to_igorwave"):
             #use left side scalings and units
-            other_array, scalings, units = other._to_igrwave()
+            other_array, scalings, units = other._to_igorwave()
             array = operator(other_array, array)
         else:
             array = operator(other, array)
@@ -1322,6 +1304,9 @@ class Wave(IgorObjectBase):
 
     def __sub__(self, other):
         return self._operator(other, op.sub)
+    
+    def __rsub__(self, other):
+        return self._roperator(other, op.sub)
 
     def __truediv__(self, other):
         return self._operator(other, op.truediv)
@@ -1348,9 +1333,9 @@ class Wave(IgorObjectBase):
         return self._roperator(other, op.matmul)
 
     def __mod__(self, other):
-        return self._operator(dest, op.mod)
+        return self._operator(other, op.mod)
 
-    def __rmod__(self, dest):
+    def __rmod__(self, other):
         return self._roperator(other, op.mod)
 
     def _to_igorwave(self):
