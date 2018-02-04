@@ -8,6 +8,7 @@ import configparser
 import itertools
 import json
 import logging
+import operator as op
 import os
 import pkgutil
 import re
@@ -1280,47 +1281,53 @@ class Wave(IgorObjectBase):
     def is_equiv(self, other):
         return np.all(self.array == other.array) and np.all(self.parray == other.parray)
 
-    def __gt__(self, other):
+    def _operator(self, other, operator):
+        array, scalings, units = self._to_igorwave()
         if isinstance(other, Wave):
-            return self.array > other.array
+            array = operator(array, other.array)
+        elif hasattr(other, "_to_igorwave"):
+            other_array, _, _ = other._to_igrwave()
+            array = operator(array, other_array)
         else:
-            return self.array > other
+            array = operator(array, other)
+        return IgorWaveConvertableNdArray(array, scalings, units)
+
+    def _roperator(self, other, operator):
+        array, scalings, units = self._to_igorwave()
+        if hasattr(other, "_to_igorwave"):
+            #use left side scalings and units
+            other_array, scalings, units = other._to_igrwave()
+            array = operator(other_array, array)
+        else:
+            array = operator(other, array)
+        return IgorWaveConvertableNdArray(array, scalings, units)
+
+    def __gt__(self, other):
+        return self._operator(other, op.gt)
 
     def __ge__(self, other):
-        if isinstance(other, Wave):
-            return self.array >= other.array
-        else:
-            return self.array >= other
+        return self._operator(other, op.ge)
 
-    def __add__(self, dest):
-        if isinstance(dest, Wave):
-            return self.array + dest.array
-        else:
-            return self.array + dest
+    def __add__(self, other):
+        return self._operator(other, op.add)
 
-    def __radd__(self, dest):
-        return self.__add__(dest)
+    def __radd__(self, other):
+        return self._roperator(other, op.add)
 
-    def __mul__(self, dest):
-        if isinstance(dest, Wave):
-            return self.array * dest.array
-        else:
-            return self.array * dest
+    def __mul__(self, other):
+        return self._operator(other, op.mul)
 
-    def __rmul__(self, dest):
-        return self.__mul__(dest)
+    def __rmul__(self, other):
+        return self._roperator(other, op.mul)
 
-    def __sub__(self, dest):
-        return self.__add__(dest * -1)
+    def __sub__(self, other):
+        return self._operator(other, op.sub)
 
-    def __truediv__(self, dest):
-        if isinstance(dest, Wave):
-            return self.array / dest.array
-        else:
-            return self.array /dest
+    def __truediv__(self, other):
+        return self._operator(other, op.truediv)
 
-    def __rtruediv__(self, dest):
-        return dest / self.array
+    def __rtruediv__(self, other):
+        return self._roperator(other, op.truediv)
 
     def __getattr__(self, key):
         if hasattr(np.ndarray, key):
@@ -1328,32 +1335,23 @@ class Wave(IgorObjectBase):
         else:
             raise AttributeError()
     
-    def __floordiv__(self, dest):
-        if isinstance(dest, Wave):
-            return self.array // dest.array
-        else:
-            return self.array //dest
+    def __floordiv__(self, other):
+        return self._operator(other, op.floordiv)
     
-    def __rfloordiv__(self, dest):
-        return dist // self.array
+    def __rfloordiv__(self, other):
+        return self._roperator(other, op.floordiv)
 
-    def __matmul__(self, dest):
-        if isinstance(dest, Wave):
-            return np.dot(self.array, dest.array)
-        else:
-            return np.dot(self.array, dest)
+    def __matmul__(self, other):
+        return self._operator(other, op.matmul)
 
-    def __rmatmul__(self, dest):
-        return np.dot(dest, self.array)
+    def __rmatmul__(self, other):
+        return self._roperator(other, op.matmul)
 
-    def __mod__(self, dest):
-        if isinstance(dest, Wave):
-            return self.array % dest.array
-        else:
-            return self.array % dest
+    def __mod__(self, other):
+        return self._operator(dest, op.mod)
 
     def __rmod__(self, dest):
-        return dest % self.array
+        return self._roperator(other, op.mod)
 
     def _to_igorwave(self):
         array = self.array
