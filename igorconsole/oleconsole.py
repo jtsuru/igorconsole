@@ -32,7 +32,7 @@ import win32com.client
 from . import comutils
 from . import oleconsts as csts
 from . import utils
-from .igorconvertable import IgorWaveConvertableNdArray
+from .igorconvertable import OperatableLikeIgorWave
 
 CODEPAGE = 0
 config = configparser.ConfigParser()
@@ -1037,7 +1037,7 @@ class Lock(Variable):
               .Variables.Remove(self.__name)
 
 
-class Wave(IgorObjectBase):
+class Wave(IgorObjectBase, OperatableLikeIgorWave):
     def __init__(self, reference, app, *, input_check=True):
         self.app = app
         self._length = None
@@ -1134,11 +1134,11 @@ class Wave(IgorObjectBase):
 
     @property
     def dtype(self):
-        return utils.to_npdtype(self.reference.GetDimensions()[0])
+        return np.dtype(utils.to_npdtype(self.reference.GetDimensions()[0]))
 
     @property
     def array(self):
-        dtype = self.dtype
+        dtype = self.dtype.type
         if issubclass(dtype, np.complexfloating):
             return utils.from_igor_complex_wave_order(self._array(), dtype=dtype)
         else:
@@ -1239,110 +1239,29 @@ class Wave(IgorObjectBase):
             nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(wv)
             self.reference.SetNumericWaveData(utils.to_igor_data_type(nptype), variant_array)
 
-    def __lt__(self, other):
-        if isinstance(other, Wave):
-            return self.array < other.array
-        else:
-            return self.array < other
-
-    def __le__(self, other):
-        if isinstance(other, Wave):
-            return self.array <= other.array
-        else:
-            return self.array <= other
-
-    def __eq__(self, other):
-        if isinstance(other, Wave):
-            return self.array == other.array
-        else:
-            return self.array == other
-
     def is_(self, other):
         return self.path == other.path
 
     def is_equiv(self, other):
         return np.all(self.array == other.array) and np.all(self.parray == other.parray)
 
-    def _operator(self, other, operator):
-        array, scalings, units = self._to_igorwave()
-        if isinstance(other, Wave):
-            array = operator(array, other.array)
-        elif hasattr(other, "_to_igorwave"):
-            other_array, _, _ = other._to_igorwave()
-            array = operator(array, other_array)
-        else:
-            array = operator(array, other)
-        return IgorWaveConvertableNdArray(array, scalings, units)
-
-    def _roperator(self, other, operator):
-        array, scalings, units = self._to_igorwave()
-        if hasattr(other, "_to_igorwave"):
-            #use left side scalings and units
-            other_array, scalings, units = other._to_igorwave()
-            array = operator(other_array, array)
-        else:
-            array = operator(other, array)
-        return IgorWaveConvertableNdArray(array, scalings, units)
-
-    def __gt__(self, other):
-        return self._operator(other, op.gt)
-
-    def __ge__(self, other):
-        return self._operator(other, op.ge)
-
-    def __add__(self, other):
-        return self._operator(other, op.add)
-
-    def __radd__(self, other):
-        return self._roperator(other, op.add)
-
-    def __mul__(self, other):
-        return self._operator(other, op.mul)
-
-    def __rmul__(self, other):
-        return self._roperator(other, op.mul)
-
-    def __sub__(self, other):
-        return self._operator(other, op.sub)
-    
-    def __rsub__(self, other):
-        return self._roperator(other, op.sub)
-
-    def __truediv__(self, other):
-        return self._operator(other, op.truediv)
-
-    def __rtruediv__(self, other):
-        return self._roperator(other, op.truediv)
-
     def __getattr__(self, key):
-        if hasattr(np.ndarray, key):
+        if key.startswith("__"):
+            raise AttributeError()
+        elif hasattr(np.ndarray, key):
+            print(key)
             return self.array.__getattribute__(key)
         else:
             raise AttributeError()
-    
-    def __floordiv__(self, other):
-        return self._operator(other, op.floordiv)
-    
-    def __rfloordiv__(self, other):
-        return self._roperator(other, op.floordiv)
 
-    def __matmul__(self, other):
-        return self._operator(other, op.matmul)
-
-    def __rmatmul__(self, other):
-        return self._roperator(other, op.matmul)
-
-    def __mod__(self, other):
-        return self._operator(other, op.mod)
-
-    def __rmod__(self, other):
-        return self._roperator(other, op.mod)
-
-    def _to_igorwave(self):
-        array = self.array
-        scalings = [self.get_scaling(i) for i in range(-1, 4)]
-        units = [self.get_unit(i) for i in range(-1, 4)]
-        return array, scalings, units
+    def _igorconsole_to_igorwave(self):
+        info = {
+            "type": "IgorWave",
+            "array": self.array,
+            "scalings": [self.get_scaling(i) for i in range(-1, 4)],
+            "units": [self.get_unit(i) for i in range(-1, 4)]
+        }
+        return info
 
 
 
@@ -1528,7 +1447,7 @@ class WaveCollection(IgorObjectCollectionBase):
     @staticmethod
     def addable(obj):
         #if wave or convartable
-        if hasattr(obj, "_to_igorwave"):
+        if hasattr(obj, "_igorconsole_to_igorwave"):
             return True
         #pandas.DataFrame
         if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
@@ -1549,8 +1468,11 @@ class WaveCollection(IgorObjectCollectionBase):
             raise TypeError("wave name must be a string.")
         if not type(self).addable(val):
             raise TypeError("This object cannot be converted to igor wave.")
-        if hasattr(val, "_to_igorwave"):
-            array, scalings, units = val._to_igorwave()
+        if hasattr(val, "_igorconsole_to_igorwave"):
+            info = val._igorconsole_to_igorwave()
+            array = info["array"]
+            scalings = info["scalings"] if "scalings" in info else None
+            units = info["units"] if "units" in info else None
             #scalings and units are not implemented yet
             self.add(key, array, shape=array.shape, overwrite=True, dtype=array.dtype)
             return

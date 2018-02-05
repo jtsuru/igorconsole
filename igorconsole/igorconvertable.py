@@ -5,97 +5,136 @@ import numpy as np
 
 class ConvertableToIgorWaveBase(abc.ABC):
     @abc.abstractmethod
-    def _to_igorwave(self):
+    def _igorconsole_to_igorwave(self):
         pass
 
-def wave_operator(self, other, operator):
+def wave_unary_operator(self, operator):
+    info = self._igorconsole_to_igorwave()
+    array, scalings, units = info["array"], info["scalings"], info["units"]
+    return ArrayOperatableLikeWave(operator(array), scalings, units)
+
+def wave_binary_operator(self, other, operator):
     from .oleconsole import Wave
-    array, scalings, units = self._to_igorwave()
+    info = self._igorconsole_to_igorwave()
+    array, scalings, units = info["array"], info["scalings"], info["units"]
     if isinstance(other, Wave):
         array = operator(array, other.array)
-    elif hasattr(other, "_to_igorwave"):
-        other_array, _, _ = other._to_igorwave()
-        array = operator(array, other_array)
+    elif hasattr(other, "_igorconsole_to_igorwave"):
+        otherinfo = other._igorconsole_to_igorwave()
+        array = operator(array, otherinfo["array"])
     else:
         array = operator(array, other)
-    return IgorWaveConvertableNdArray(array, scalings, units)
+    return ArrayOperatableLikeWave(array, scalings, units)
 
-def wave_roperator(self, other, operator):
-    array, scalings, units = self._to_igorwave()
-    if hasattr(other, "_to_igorwave"):
+def wave_binary_roperator(self, other, operator):
+    info = self._igorconsole_to_igorwave()
+    array, scalings, units = info["array"], info["scalings"], info["units"]
+    if hasattr(other, "_igorconsole_to_igorwave"):
         #use left side scalings and units
-        other_array, scalings, units = other._to_igrwave()
-        array = operator(other_array, array)
+        otherinfo = other._igorconsole_to_igrwave()
+        array = operator(otherinfo["array"], array)
+        scalings = otherinfo["scalings"]
+        units = otherinfo["units"]
     else:
         array = operator(other, array)
-    return IgorWaveConvertableNdArray(array, scalings, units)
+    return ArrayOperatableLikeWave(array, scalings, units)
 
-class IgorWaveConvertableNdArray(np.ndarray, ConvertableToIgorWaveBase):
-    def __new__(cls, array, scalings=None, units=None):
-        if scalings is None or units is None:
-            array, scalings, units = array._to_igorwave()
-        result = np.asarray(array).view(cls)
-        result.scalings = scalings
-        result.units = units
-        return result
-    
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        self.scalings = getattr(obj, "scalings", None)
-        self.units = getattr(obj, "units", None)
-    
-    def _to_igorwave(self):
-        return np.asarray(self), self.scalings, self.units
+class OperatableLikeIgorWave(ConvertableToIgorWaveBase):
+    def __len__(self):
+        info = self._igorconsole_to_igorwave()
+        return len(info["array"])
 
-    _operator = wave_operator
+    def __getitem__(self, key):
+        info = self._igorconsole_to_igorwave()
+        return info["array"][key]
 
-    _roperator = wave_roperator
+    #unary operations
+    def __neg__(self):
+        return wave_unary_operator(self, op.neg)
+
+    def __pos__(self):
+        return wave_unary_operator(self, op.pos)
+
+    def __abs__(self):
+        return wave_unary_operator(self, op.abs)
+
+    def __invert__(self):
+        return wave_unary_operator(self, op.invert)
+
+    def __lt__(self, other):
+        return wave_binary_operator(self, other, op.lt).array
+
+    def __le__(self, other):
+        return wave_binary_operator(self, other, op.le).array
+
+    def __eq__(self, other):
+        return wave_binary_operator(self, other, op.eq).array
 
     def __gt__(self, other):
-        return self._operator(other, op.gt)
+        return wave_binary_operator(self, other, op.gt).array
 
     def __ge__(self, other):
-        return self._operator(other, op.ge)
+        return wave_binary_operator(self, other, op.ge).array
 
     def __add__(self, other):
-        return self._operator(other, op.add)
+        return wave_binary_operator(self, other, op.add)
 
     def __radd__(self, other):
-        return self._roperator(other, op.add)
+        return wave_binary_roperator(self, other, op.add)
 
     def __mul__(self, other):
-        return self._operator(other, op.mul)
+        return wave_binary_operator(self, other, op.mul)
 
     def __rmul__(self, other):
-        return self._roperator(other, op.mul)
+        return wave_binary_roperator(self, other, op.mul)
 
     def __sub__(self, other):
-        return self._operator(other, op.sub)
+        return wave_binary_operator(self, other, op.sub)
     
     def __rsub__(self, other):
-        return self._roperator(other, op.sub)
+        return wave_binary_roperator(self, other, op.sub)
 
     def __truediv__(self, other):
-        return self._operator(other, op.truediv)
+        return wave_binary_operator(self, other, op.truediv)
 
     def __rtruediv__(self, other):
-        return self._roperator(other, op.truediv)
+        return wave_binary_roperator(self, other, op.truediv)
     
     def __floordiv__(self, other):
-        return self._operator(other, op.floordiv)
+        return wave_binary_operator(self, other, op.floordiv)
     
     def __rfloordiv__(self, other):
-        return self._roperator(other, op.floordiv)
+        return wave_binary_roperator(self, other, op.floordiv)
 
     def __matmul__(self, other):
-        return self._operator(other, op.matmul)
+        return wave_binary_operator(self, other, op.matmul)
 
     def __rmatmul__(self, other):
-        return self._roperator(other, op.matmul)
+        return wave_binary_roperator(self, other, op.matmul)
 
     def __mod__(self, other):
-        return self._operator(other, op.mod)
+        return wave_binary_operator(self, other, op.mod)
 
     def __rmod__(self, other):
-        return self._roperator(other, op.mod)
+        return wave_binary_roperator(self, other, op.mod)
+
+class ArrayOperatableLikeWave(OperatableLikeIgorWave):
+    def __init__(self, *args):
+        if isinstance(args, dict):
+            raise NotImplementedError()
+        else:
+            self.array = np.asarray(args[0])
+            self.scalings = args[1]
+            self.units = args[2]
+    
+    def __repr__(self):
+        return repr(self.array)
+
+    def _igorconsole_to_igorwave(self):
+        info = {
+            "type": "IgorWave",
+            "array": self.array,
+            "scalings": self.scalings,
+            "units": self.units
+        }
+        return info
