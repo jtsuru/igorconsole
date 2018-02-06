@@ -1196,20 +1196,22 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
     def _array(self):
         return self.reference.GetNumericWaveData(utils.to_igor_data_type(self.dtype))
 
-    def append(self, obj):
+    def append(self, obj, keepscalings=True, keepunits=True):
         length = self._length
         if (length is not None) and length > APPEND_SWITCH:
             self._append2(obj)
         else:
-            self._append1(obj)
+            self._append1(obj, keepscalings, keepunits)
 
-    def _append1(self, obj):
-        obj = utils.to_list(obj)
-        new_array = list(self._array())
-        new_array += obj
+    def _append1(self, obj, keepscalings, keepunits):
+        scalings = [self.get_scaling(i) for i in range(-1, 4)] if keepscalings else None
+        units = [self.get_unit(i) for i in range(-1, 4)] if keepunits else None
+        array = self.array
+        dtype = array.dtype
+        obj = np.array(obj, dtype=dtype, ndmin=1)
+        new_array = np.concatenate([array, obj])
+        self.parent.waves.add(self.name, new_array, scalings=scalings, units=units, overwrite=True)
         self._length = len(new_array)
-        f = self.parent
-        f.make_wave(self.name, new_array) 
 
     def _append2(self, obj):
         obj = utils.to_list(obj)
@@ -1294,8 +1296,7 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
         if key.startswith("__"):
             raise AttributeError()
         elif hasattr(np.ndarray, key):
-            print(key)
-            return self.array.__getattribute__(key)
+            return np.ndarray.__getattribute__(self, key)
         else:
             raise AttributeError()
 
@@ -1434,14 +1435,14 @@ class WaveCollection(IgorObjectCollectionBase):
 
     def add(self, name, array_like=None, *,
             shape=None, overwrite=True, dtype=None,
-            keep_info=False):
+            scalings=None, units=None):
         return self.add_numeric(name, array_like,
                                 shape=shape, overwrite=overwrite,
-                                dtype=dtype, keep_info=keep_info)
+                                dtype=dtype, scalings=scalings, units=units)
 
     def add_numeric(self, name, array_like=None, *,
                     shape=None, overwrite=True, dtype=None,
-                    keep_info=True):
+                    scalings=None, units=None):
         if (array_like is None) and (shape is not None):
             dtype = np.float if dtype is None else dtype
             array_like = np.zeros(shape)
@@ -1450,28 +1451,30 @@ class WaveCollection(IgorObjectCollectionBase):
         #convert to np.array once to determine dtype and shape.
         array = np.asarray(array_like) if dtype is None else np.asarray(array_like, dtype=dtype)
         dtype = utils.to_igor_data_type(array.dtype.type)
-        shape = np.zeros(4, dtype=int)
+        shape = [0] * 4
         ashape = array.shape
         shape[:len(ashape)] = ashape
-        shape = shape.tolist()
-        if keep_info and (name in self):
-            oldwave = self[name]
-            scales = [oldwave.get_scaling(i) for i in range(-1, 4)]
-            units = [oldwave.get_unit(i) for i in range(-1, 4)]
-            _set_info = True
-        else:
-            _set_info = False
-
         wv = self.reference.Add(name, dtype, *shape, overwrite)
         if issubclass(array.dtype.type, np.complexfloating):
             array = utils.to_igor_complex_wave_order(array)
         nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(array)
         wv.SetNumericWaveData(utils.to_igor_data_type(nptype), variant_array)
         result = Wave(wv, self.app, input_check=False)
-        if _set_info:
-            for i, scale, unit in zip(range(-1, 4), scales, units):
-                result.set_scaling(*scale, i)
-                result.set_unit(unit, i)
+        if scalings is not None:
+            for i, scaling in enumerate(scalings):
+                dimension = i - 1
+                init, grad = scaling
+                if dimension == -1 and init == 0.0 and grad == 0.0:
+                    continue
+                if dimension != -1 and init == 0.0 and grad == 1.0:
+                    continue
+                result.set_scaling(init, grad, dimension)
+        if units is not None:
+            for i, unit in enumerate(units):
+                dimension = i - 1
+                if unit == "":
+                    continue
+                result.set_unit(unit, dimension)
         return result
 
     def copy(self):
@@ -1515,6 +1518,7 @@ class WaveCollection(IgorObjectCollectionBase):
             raise TypeError("wave name must be a string.")
         if not type(self).addable(val):
             raise TypeError("This object cannot be converted to igor wave.")
+
         if hasattr(val, "_igorconsole_to_igorwave"):
             val = val._igorconsole_to_igorwave()
         if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorWave"):
@@ -1522,8 +1526,9 @@ class WaveCollection(IgorObjectCollectionBase):
             scalings = val["scalings"] if "scalings" in val else None
             units = val["units"] if "units" in val else None
             #scalings and units are not implemented yet
-            self.add(key, array, shape=array.shape, overwrite=True, dtype=array.dtype)
+            self.add(key, array, shape=array.shape, scalings=scalings, units=units, overwrite=True)
             return
+
         if hasattr(val, "__iter__") and hasattr(val, "__getitem__"):
             self.add(key, val, overwrite=True)
             

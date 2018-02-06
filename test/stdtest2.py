@@ -145,5 +145,5 @@ if __name__ == "__main__":
     folder_setitem_test()
     wavecollection_setitem_test()
     variablecollection_setitem_test()
-    foldercollection_setitem_test()
+    #foldercollection_setitem_test()
     print("OK!")
