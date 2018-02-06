@@ -19,6 +19,7 @@ import warnings
 
 from abc import ABC, abstractmethod
 from collections import abc as c_abc
+from collections import deque
 
 
 import numpy as np
@@ -835,6 +836,30 @@ class Folder(IgorObjectBase):
         set_("reference", None)
         parent.delete_folder(name)
     
+    def walk(self, limit_depth=float("inf"), shallower_limit=0, method="dfs"):
+        def get_children(depth, subfolders):
+            children = [(depth+1, folder) for folder in subfolders]
+            if method == "dfs":
+                return reversed(children)
+            else:
+                return children
+
+        deq = deque([(0, self)])
+        method = method.lower()
+        if method == "dfs":
+            pop = deq.pop
+        elif method == "bfs":
+            pop = deq.popleft
+        else:
+            raise ValueError("Invalid method. Method must be 'dfs' or 'bfs'.")
+        while deq:
+            depth, folder = pop()
+            subfolders = folder.subfolders
+            if depth >= shallower_limit:
+                yield folder, subfolders, folder.variables, folder.waves
+            if depth < limit_depth:
+                deq.extend(get_children(depth, subfolders))
+
     f = subfolders
 
     w = waves
