@@ -1407,7 +1407,7 @@ class FolderCollection(IgorObjectCollectionBase):
         if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorFolder"):
             self.add(key, overwrite=True)
             f = self[key]
-            for name, item in val["subfolders"].item():
+            for name, item in val["subfolders"].items():
                 f[name] = item
             for name, item in val["contents"].items():
                 f[name] = item
