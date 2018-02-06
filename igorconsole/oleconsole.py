@@ -859,6 +859,22 @@ class Folder(IgorObjectBase):
                 yield folder, subfolders, folder.variables, folder.waves
             if depth < limit_depth:
                 deq.extend(get_children(depth, subfolders))
+    
+    def _igorconsole_to_igorfolder(self):
+        folders = {}
+        for f in self.subfolders:
+            folders[f.name] = f._igorconsole_to_igorfolder()
+        contents = {}
+        for v in self.variables:
+            contents[v.name] = v._igorconsole_to_igorvariable()
+        for w in self.waves:
+            contents[w.name] = w._igorconsole_to_igorwave()
+        info = {
+            "type": "IgorFolder",
+            "subfolders": folders,
+            "contents": contents
+        }
+        return info
 
     f = subfolders
 
@@ -1027,8 +1043,12 @@ class Variable(IgorObjectBase):
         else:
             return obj ** self.value
 
-    def _to_igorvariable(self):
-        return self.value
+    def _igorconsole_to_igorvariable(self):
+        info = {
+            "type": "IgorVariable",
+            "value": self.value
+        }
+        return info
 
 class Lock(Variable):
     def __init__(self, app, *, timeout=60):
@@ -1359,16 +1379,11 @@ class FolderCollection(IgorObjectCollectionBase):
     
     @staticmethod
     def addable(obj):
-        if hasattr(obj, "_to_igorfolder"):
+        if hasattr(obj, "_igorconsole_to_igorfolder"):
             return True
         if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
             return True
-        if isinstance(obj, dict) or isinstance(obj, c_abc.Mapping):
-            for i, v in obj.items():
-                if not utils.isstr(i):
-                    return False
-                if not (WaveCollection.addable(v) or VariableCollection.addable(v) or FolderCollection.addable(v)):
-                    return False
+        if isinstance(obj, dict) and ("type" in obj) and (obj["type"] == "IgorFolder"):
             return True
         return False
     
@@ -1385,12 +1400,18 @@ class FolderCollection(IgorObjectCollectionBase):
                 for column in val.columns:
                     f[str(column)] = val[column]
             return
-        if hasattr(val, "_to_igorfolder"):
-            val = val._to_igorfolder()
-        #val must be a dict
-        f = self.add(key, overwrite=True)
-        for i, v in val.items():
-            f[i] = v    
+        
+        if hasattr(val, "_igorconsole_to_igorfolder"):
+            val = val._igorconsole_to_igorfolder()
+        if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorFolder"):
+            self.add(key, overwrite=True)
+            f = self[key]
+            for name, item in val["subfolders"].item():
+                f[name] = item
+            for name, item in val["contents"].items():
+                f[name] = item
+            return
+        raise ValueError("Convert to igor folder structure failed.")
 
 class WaveCollection(IgorObjectCollectionBase):
     def __init__(self, reference, app, parent=None):
@@ -1474,10 +1495,11 @@ class WaveCollection(IgorObjectCollectionBase):
         #if wave or convartable
         if hasattr(obj, "_igorconsole_to_igorwave"):
             return True
+        if isinstance(obj, dict) and ("type" in obj) and (obj["type"] == "IgorWave"):
+            return True
         #pandas.DataFrame
         if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
             return False
-
         #if list or array
         elif not utils.isstr(obj) and hasattr(obj, "__iter__") and hasattr(obj, "__getitem__"):
             if isinstance(obj, (list, tuple, np.ndarray)):
@@ -1494,10 +1516,11 @@ class WaveCollection(IgorObjectCollectionBase):
         if not type(self).addable(val):
             raise TypeError("This object cannot be converted to igor wave.")
         if hasattr(val, "_igorconsole_to_igorwave"):
-            info = val._igorconsole_to_igorwave()
-            array = info["array"]
-            scalings = info["scalings"] if "scalings" in info else None
-            units = info["units"] if "units" in info else None
+            val = val._igorconsole_to_igorwave()
+        if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorWave"):
+            array = val["array"]
+            scalings = val["scalings"] if "scalings" in val else None
+            units = val["units"] if "units" in val else None
             #scalings and units are not implemented yet
             self.add(key, array, shape=array.shape, overwrite=True, dtype=array.dtype)
             return
@@ -1546,7 +1569,9 @@ class VariableCollection(IgorObjectCollectionBase):
     
     @staticmethod
     def addable(obj):
-        if hasattr(obj, "_to_igorvariable"):
+        if hasattr(obj, "_igorconsole_to_igorvariable"):
+            return True
+        if isinstance(obj, dict) and ("type" in obj) and (obj["type"] == "IgorVariable"):
             return True
         if utils.isstr(obj) or utils.isreal(obj) or utils.iscomplex(obj):
             return True
@@ -1556,6 +1581,10 @@ class VariableCollection(IgorObjectCollectionBase):
             raise TypeError("name of the igor variable must be a string.")
         if not type(self).addable(val):
             raise TypeError("Cannot convert to igor variable.")
+        if hasattr(val, "_igorconsole_to_igorvariable"):
+            val = val._igorconsole_to_igorvariable()
+        if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorVariable"):
+            val = val["value"]
         self.add(key, val, overwrite=True)
 
 
