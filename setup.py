@@ -11,8 +11,8 @@ setup(
     author_email="33685861+jtsuru@users.noreply.github.com",
     license='MIT',
     keywords='IgorPro',
-    packages=["igorconsole"],
-    package_data={"igorconsole": ["config.ini", "styles/*.json"]},
+    packages=["igorconsole", "igorconsole.abc", "igorconsole.oleconsole"],
+    package_data={"igorconsole": ["oleconsole/config.ini", "styles/*.json"]},
     install_requires=[
         "numpy",
         "pywin32",

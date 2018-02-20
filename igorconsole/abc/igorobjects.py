@@ -133,10 +133,6 @@ class IgorWaveBase(IgorObjectBase, OperatableLikeIgorWave):
 
 class IgorObjectCollectionBase(ABC, c_abc.MutableMapping):
     @abstractmethod
-    def copy(self):
-        pass
-
-    @abstractmethod
     def add(self, name, overwrite=False):
         pass
 

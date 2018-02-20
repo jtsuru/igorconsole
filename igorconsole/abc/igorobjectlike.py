@@ -142,19 +142,19 @@ class OperatableLikeIgorWave(OperatableLikeIgorObject, ConvertableToIgorWaveMixi
         return info["array"][key]
 
     def __lt__(self, other):
-        return super().__lt__(self, other).array
+        return super().__lt__(other).array
 
     def __le__(self, other):
-        return super().__le__(self, other).array
+        return super().__le__(other).array
 
     def __eq__(self, other):
-        return super().__eq__(self, other).array
+        return super().__eq__(other).array
 
     def __gt__(self, other):
-        return super().__gt__(self, other).array
+        return super().__gt__(other).array
 
     def __ge__(self, other):
-        return super().__ge__(self, other).array
+        return super().__ge__(other).array
 
     def __matmul__(self, other):
         return self._binary_operation(other, op.matmul)

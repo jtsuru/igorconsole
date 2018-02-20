@@ -2,7 +2,7 @@
 """Objective Igor COM-connection wrapper classes.
 
 Todo:
-    * Make table classes
+    * Make documents
 """
 import configparser
 import itertools
@@ -16,24 +16,21 @@ import sys
 import tempfile
 import time
 import warnings
-
 from abc import ABC, abstractmethod
 from collections import abc as c_abc
 from collections import deque
 
-
 import numpy as np
-
-logger = logging.getLogger(__name__)
-
 import pythoncom
 from pythoncom import com_error
 import win32com.client
 
-from . import comutils
-from . import oleconsts as csts
-from . import utils
-from .igorconvertable import OperatableLikeIgorWave
+from igorconsole.oleconsole import comutils, utils
+import igorconsole.oleconsole.oleconsts as csts
+from igorconsole.abc.igorobjects import IgorObjectBase, IgorFolderBase, IgorVariableBase, IgorWaveBase, IgorObjectCollectionBase
+
+logger = logging.getLogger(__name__)
+
 
 CODEPAGE = 0
 config = configparser.ConfigParser()
@@ -66,8 +63,6 @@ def object_type(obj):
     elif hasattr(obj, "DataType"):
         return "Variable"
     raise TypeError()
-
-import numpy as np
 
 class IgorApp:
     "Managing connection to igor and sending message."
@@ -388,14 +383,14 @@ class IgorApp:
 
     @property
     def data(self):
-        return Folder("root:", self)
+        return OLEIgorFolder("root:", self)
 
     root = data
 
     @property
     def cwd(self):
         cwd_path = self.execute("fprintf 0, getdatafolder(1)")[1][0]
-        return Folder(cwd_path, self)
+        return OLEIgorFolder(cwd_path, self)
 
     def window_names(self, wintype):
         return self.execute(r'fprintf 0, winlist("*", ";", "win:'
@@ -515,7 +510,7 @@ class IgorApp:
             command += "/W=({0}, {1}, {2}, {3})".format(*win_location)
 
         command += " "
-        if isinstance(ywaves, Wave):
+        if isinstance(ywaves, OLEIgorWave):
             ywaves = [ywaves]
         for i, ywave in enumerate(ywaves):
             if i != 0:
@@ -663,16 +658,16 @@ class IgorApp:
             wv[-1] = v
 
     def wave(self, path:str):
-        return Wave(path, self)
+        return OLEIgorWave(path, self)
 
     def folder(self, path:str):
-        return Folder(path, self)
+        return OLEIgorFolder(path, self)
 
     def variable(self, path:str):
-        return Variable(path, self)
+        return OLEIgorVariable(path, self)
 
 
-class IgorObjectBase(ABC):
+class OLEIgorObjectBase(IgorObjectBase):
     def _path(self, relative=False, quoted=False):
         return self.reference.Path(relative, quoted)
 
@@ -690,7 +685,7 @@ class IgorObjectBase(ABC):
 
     @property
     def parent(self):
-        return Folder(self.reference.ParentDataFolder, self.app, input_check=False)
+        return OLEIgorFolder(self.reference.ParentDataFolder, self.app, input_check=False)
 
     @property
     def _parent_path(self):
@@ -700,7 +695,7 @@ class IgorObjectBase(ABC):
 
 # 代入演算子オーバーロードの影響でクラス内に代入できなので注意。
 #attributeを増やすにはsetattrメソッドを使うこと。
-class Folder(IgorObjectBase):
+class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
     def __init__(self, reference, app, *, input_check=True):
         set_ = lambda i, p: self.setattr(i, p)
         set_("app", app)
@@ -764,11 +759,11 @@ class Folder(IgorObjectBase):
         raise KeyError("Object {} not found.".format(key))
 
     def __setitem__(self, key, val):
-        if WaveCollection.addable(val):
+        if OLEIgorWaveCollection.addable(val):
             self.waves[key] = val
-        elif VariableCollection.addable(val):
+        elif OLEIgorVariableCollection.addable(val):
             self.variables[key] = val
-        elif FolderCollection.addable(val):
+        elif OLEIgorFolderCollection.addable(val):
             self.subfolders[key] = val
         else:
             raise ValueError("Cannot convert to igor object.")
@@ -782,15 +777,15 @@ class Folder(IgorObjectBase):
 
     @property
     def subfolders(self):
-        return FolderCollection(self.reference.SubDataFolders, self.app)
+        return OLEIgorFolderCollection(self.reference.SubDataFolders, self.app)
 
     @property
     def waves(self):
-        return WaveCollection(self.reference.Waves, self.app, self)
+        return OLEIgorWaveCollection(self.reference.Waves, self.app, self)
 
     @property
     def variables(self):
-        return VariableCollection(self.reference.Variables, self.app)
+        return OLEIgorVariableCollection(self.reference.Variables, self.app)
 
 
     def make_folder(self, name, overwrite=False):
@@ -801,26 +796,6 @@ class Folder(IgorObjectBase):
 
     def make_variable(self, name, value, overwrite=True):
         return self.variables.add(name, value, overwrite=overwrite)
-
-    def show(self, print_=True):
-        result = []
-        result.append("Subfolders:")
-
-        for i, folder in enumerate(self.subfolders.keys()):
-            result.append("  subfolders {0}: {1}".format(i, folder))
-
-        result.append("Waves:")
-        for i, wave in enumerate(self.waves.keys()):
-            result.append("  waves {0}: {1}".format(i, wave))
-
-        result.append("Variables:")
-        for i, val in enumerate(self.variables.keys()):
-            result.append("  variables {0}: {1}".format(i, val))
-
-        if print_:
-            print("\n".join(result))
-        else:
-            return "\n".join(result)
 
     def chdir(self):
         self.app.execute("cd {}".format(self.quoted_path), logged=False)
@@ -882,7 +857,7 @@ class Folder(IgorObjectBase):
 
     v = variables
 
-class TempFolder(Folder):
+class TempFolder(OLEIgorFolder):
     def __init__(self, app, name=None):
         super().__init__(None, app, input_check=False)
         if name is None:
@@ -902,7 +877,7 @@ class TempFolder(Folder):
         self.current_dir.chdir()
         super().delete()
 
-class Variable(IgorObjectBase):
+class OLEIgorVariable(OLEIgorObjectBase, IgorVariableBase):
     def __init__(self, reference, app, *, input_check=True):
         self.app = app
         if isinstance(reference, str):
@@ -913,7 +888,6 @@ class Variable(IgorObjectBase):
             self.reference = reference
         else:
             raise TypeError("reference is not a variable")
-
 
     @property
     def dtype(self):
@@ -929,119 +903,11 @@ class Variable(IgorObjectBase):
         if dtype == str:
             return self.reference.GetStringValue(CODEPAGE)
 
-    #def delete(self):
-    #    parent = self.parent
-    #    name = self.path.split(":")[-2]
-    #    parent.variables.remove(name)
-    #    set_("reference", None)
-    #    parent.delete_folder(name)
-
-    def __str__(self):
-        return str(self.value)
+    def delete(self):
+        raise NotImplementedError()
 
     def __repr__(self):
         return str(self)
-
-    def __eq__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value == obj.value
-        else:
-            return self.value == obj
-
-    def __complex__(self):
-        return complex(self.value)
-
-    def __float__(self):
-        return float(self.value)
-
-    # numeric operations
-    def __add__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value + obj.value
-        else:
-            return self.value + obj
-
-    def __sub__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value - obj.value
-        else:
-            return self.value - obj
-
-    def __mul__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value * obj.value
-        else:
-            return self.value * obj
-
-    def __truediv__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value / obj.value
-        else:
-            return self.value / obj
-
-    def __floordiv__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value // obj.value
-        else:
-            return self.value // obj
-
-    def __mod__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value % obj.value
-        else:
-            return self.value % obj
-
-    def __divmod__(self, obj):
-        return self // obj, self % obj
-
-    def __pow__(self, obj):
-        if isinstance(obj, Variable):
-            return self.value ** obj.value
-        else:
-            return self.value ** obj
-
-    #rite side operation
-    def __radd__(self, obj):
-        if isinstance(obj, Variable):
-            return obj.value + self.value
-        else:
-            return obj + self.value
-
-    def __rsub__(self, obj):
-        if isinstance(obj, Variable):
-            return obj.value - self.value
-        else:
-            return obj - self.value
-
-    def __rmul__(self, obj):
-        if isinstance(obj, Variable):
-            return obj.value * self.value
-        else:
-            return obj * self.value
-
-    def __rtruediv__(self, obj):
-        if isinstance(obj, Variable):
-            return obj.value / self.value
-        else:
-            return obj / self.value
-
-    def __rfloordiv__(self, obj):
-        if isinstance(obj, Variable):
-            return obj.value // self.value
-        else:
-            return obj // self.value
-
-    def __rmod__(self, obj):
-        if isinstance(obj, Variable):
-            return obj.value % self.value
-        else:
-            return obj % self.value
-
-    def __rpow__(self, obj):
-        if isinstance(obj, Variable):
-            return obj.value ** self.value
-        else:
-            return obj ** self.value
 
     def _igorconsole_to_igorvariable(self):
         info = {
@@ -1050,39 +916,8 @@ class Variable(IgorObjectBase):
         }
         return info
 
-class Lock(Variable):
-    def __init__(self, app, *, timeout=60):
-        super().__init__(None, app, input_check=False)
-        self.__name = "ic__lock__"
-        self.timeout = timeout
 
-    def __enter__(self):
-        overwrite = False
-        current_time = time.monotonic
-        init_time = current_time()
-        while current_time() - init_time < self.timeout:
-            try:
-                newv = self.app.reference.DataFolder("root:")\
-                       .Variables.Add(self.__name, utils.to_igor_data_type(np.float64), overwrite)
-                break
-            except com_error as e:
-                err_msg = e.args[2][2]
-                if err_msg == "name already exists as a variable (IVariables::Add)":
-                    from random import uniform
-                    time.sleep(uniform(1e-3, 20e-3))
-                    logger.debug(e)
-                else:
-                    raise
-        else:
-            raise TimeoutError()
-        self.reference = newv
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.app.reference.DataFolder("root:")\
-              .Variables.Remove(self.__name)
-
-
-class Wave(IgorObjectBase, OperatableLikeIgorWave):
+class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     def __init__(self, reference, app, *, input_check=True):
         self.app = app
         self._length = None
@@ -1094,6 +929,9 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
             self.reference = reference
         else:
             raise TypeError("reference is not a Wave")
+
+    def delete(self):
+        raise NotImplementedError()
 
     @property
     def is_inuse(self):
@@ -1118,15 +956,15 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
         return d
 
     def get_unit(self, dimension=csts.WaveDimension.Data):
-        dimension = Wave._unit_to_int(dimension)
+        dimension = type(self)._unit_to_int(dimension)
         return self.reference.Units(dimension, CODEPAGE)
 
     def set_unit(self, unit, dimension=csts.WaveDimension.Data):
-        dimension = Wave._unit_to_int(dimension)
+        dimension = type(self)._unit_to_int(dimension)
         self.reference.SetUnits(dimension, CODEPAGE, unit)
 
     def get_scaling(self, dimension):
-        dimension = Wave._unit_to_int(dimension)
+        dimension = type(self)._unit_to_int(dimension)
         #the returned value order is different from the igor mannual.
         grad, init = self.reference.GetScaling(dimension)
         return init, grad
@@ -1302,7 +1140,7 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
         return info
 
 
-class IgorObjectCollectionBase(ABC, c_abc.Mapping): #->MutableMapping
+class OLEIgorObjectCollection(IgorObjectCollectionBase):
     def __init__(self, reference, app):
         self.reference = reference
         self.app = app
@@ -1327,17 +1165,12 @@ class IgorObjectCollectionBase(ABC, c_abc.Mapping): #->MutableMapping
         return None
 
     @abstractmethod
-    def copy(self):
-        pass
-
-    @abstractmethod
     def add(self, name, overwrite=False):
         pass
 
-    # add later
-    #@abstractmethod
-    #def addable(self, obj):
-    #    pass
+    @abstractmethod
+    def addable(self, obj):
+        pass
 
     def keys(self):
         return {item.Name for item in self.reference}
@@ -1350,20 +1183,23 @@ class IgorObjectCollectionBase(ABC, c_abc.Mapping): #->MutableMapping
         return [self[key] for key in self.keys()]
 
 
-class FolderCollection(IgorObjectCollectionBase):
+class OLEIgorFolderCollection(OLEIgorObjectCollection):
     def __getitem__(self, key):
         """
         get folders by numeric index or by the folder name.
         """
         key = key if isinstance(key, str) else int(key)
-        return Folder(self.reference(key), self.app, input_check=False)
+        return OLEIgorFolder(self.reference(key), self.app, input_check=False)
 
     def __contains__(self, name):
         return self.reference.DataFolderExists(name)
+    
+    def __delitem__(self, name):
+        raise NotImplementedError()
 
     def add(self, name, overwrite=False):
         with TempFolder(self.app):
-            return Folder(self.reference.Add(name, overwrite), self.app, input_check=False)
+            return OLEIgorFolder(self.reference.Add(name, overwrite), self.app, input_check=False)
     
     @staticmethod
     def addable(obj):
@@ -1401,7 +1237,7 @@ class FolderCollection(IgorObjectCollectionBase):
             return
         raise ValueError("Convert to igor folder structure failed.")
 
-class WaveCollection(IgorObjectCollectionBase):
+class OLEIgorWaveCollection(OLEIgorObjectCollection):
     def __init__(self, reference, app, parent=None):
         super().__init__(reference, app)
         #相互参照を作らないように注意
@@ -1412,13 +1248,16 @@ class WaveCollection(IgorObjectCollectionBase):
         get waves by numeric index or by the folder name.
         """
         key = key if isinstance(key, str) else int(key)
-        return Wave(self.reference(key), self.app, input_check=False)
+        return OLEIgorWave(self.reference(key), self.app, input_check=False)
 
     def __contains__(self, name):
         #self.reference.WaveExists(name) has bug, and always returns False. (igor 6.37, igor 7.06)
         if self.parent is not None:
             return self.parent.reference.WaveExists(name)
         return name in self.names
+
+    def __delitem__(self, name):
+        raise NotImplementedError()
 
     def add(self, name, array_like=None, *,
             shape=None, overwrite=True, dtype=None,
@@ -1446,7 +1285,7 @@ class WaveCollection(IgorObjectCollectionBase):
             array = utils.to_igor_complex_wave_order(array)
         nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(array)
         wv.SetNumericWaveData(utils.to_igor_data_type(nptype), variant_array)
-        result = Wave(wv, self.app, input_check=False)
+        result = OLEIgorWave(wv, self.app, input_check=False)
         if scalings is not None:
             for i, scaling in enumerate(scalings):
                 dimension = i - 1
@@ -1463,9 +1302,6 @@ class WaveCollection(IgorObjectCollectionBase):
                     continue
                 result.set_unit(unit, dimension)
         return result
-
-    def copy(self):
-        return WaveCollection(self.reference, self.app, self.parent)
 
     def _to_Series_dict(self, index="position"):
         return {name: wave.to_Series(index=index) for name, wave,
@@ -1520,19 +1356,22 @@ class WaveCollection(IgorObjectCollectionBase):
             self.add(key, val, overwrite=True)
 
 
-class VariableCollection(IgorObjectCollectionBase):
+class OLEIgorVariableCollection(OLEIgorObjectCollection):
     def __getitem__(self, key):
         """
         get variables by numeric index or by the folder name.
         """
         key = key if isinstance(key, str) else int(key)
-        return Variable(self.reference(key), self.app, input_check=False)
+        return OLEIgorVariable(self.reference(key), self.app, input_check=False)
 
     def __contains__(self, name):
         return self.reference.VariableExists(name)
 
+    def __delitem__(self, name):
+        raise NotImplementedError()
+
     def add(self, name, value, overwrite=False):
-        if isinstance(value, Variable):
+        if isinstance(value, OLEIgorVariable):
             self.add(name, value.value, overwrite=overwrite)
         elif isinstance(value, str):
             return self._add_string(name, value, overwrite=overwrite)
@@ -1548,16 +1387,13 @@ class VariableCollection(IgorObjectCollectionBase):
             raise ValueError()
         v = self.reference.Add(name, dtype, overwrite)
         v.SetNumericValue(value.real, value.imag)
-        return Variable(v, self.app, input_check=False)
+        return OLEIgorVariable(v, self.app, input_check=False)
 
     def _add_string(self, name, value, overwrite=True):
         dtype = utils.to_igor_data_type(str)
         v = self.reference.Add(name, dtype, overwrite)
         v.SetStringValue(CODEPAGE, value)
-        return Variable(v, self.app, input_check=False)
-
-    def copy(self):
-        return WaveCollection(self.reference, self.app)
+        return OLEIgorVariable(v, self.app, input_check=False)
     
     @staticmethod
     def addable(obj):
@@ -1610,7 +1446,7 @@ class Graph(Window):
     def __contains__(self, key):
         if isinstance(key, str):
             return key in self.keys()
-        elif isinstance(key, Wave):
+        elif isinstance(key, OLEIgorWave):
             for wave in self.values():
                 if key.is_(wave):
                     return True
@@ -1628,7 +1464,7 @@ class Graph(Window):
         if utils.isint(key):
             return self.trace_wave(int(key), True, True, True)
         elif isinstance(key, str) and (key in self):
-            return Wave(self._to_fullpath(key), self.app)
+            return OLEIgorWave(self._to_fullpath(key), self.app)
         elif isinstance(key, (np.ndarray, list, slice)):
             result = np.array(self.values())[key]
             return result.tolist()
@@ -1673,11 +1509,11 @@ class Graph(Window):
     def trace_wave(self, trace, normal=True, contour=True, hidden=False):
         if utils.isint(trace):
             trace = self.traces(normal, contour, hidden)[int(trace)]
-        return Wave(self._to_fullpath(trace), self.app)
+        return OLEIgorWave(self._to_fullpath(trace), self.app)
 
     def trace_waves(self, normal=True, contour=True, hidden=False):
         names = self.traces(normal, contour, hidden)
-        return (Wave(self._to_fullpath(name), self.app) for name in names)
+        return (OLEIgorWave(self._to_fullpath(name), self.app) for name in names)
 
     #def remove_trace(self, waves):
     #    if isinstance(waves, Wave) or isinstance(waves, str):
@@ -1748,7 +1584,7 @@ class Graph(Window):
     def map_color(self, style:str, traces=None, *args, **kwargs):
         traces = self.traces() if traces is None else traces
         length = len(traces)
-        from . import colorfuncs
+        from igorconsole import colorfuncs
         grad_func = colorfuncs.gradation[style]
         trace_colors = {}
         for i, trace in enumerate(traces):
@@ -2051,9 +1887,9 @@ class Table(Window):
     def _column_wave(self, key):
         key = self._to_column_index(key)
         if isinstance(key, int):
-            return Wave(self._raw_info_dict(key)["WAVE"], self.app)
+            return OLEIgorWave(self._raw_info_dict(key)["WAVE"], self.app)
         else:
-            return [Wave(self._raw_info_dict(item)["WAVE"], self.app)
+            return [OLEIgorWave(self._raw_info_dict(item)["WAVE"], self.app)
                     for item in key]
 
     def __contains__(self, obj):
@@ -2063,7 +1899,7 @@ class Table(Window):
             if obj in self._column_names:
                 return True
             return False
-        elif isinstance(obj, Wave):
+        elif isinstance(obj, OLEIgorWave):
             for wv in self.waves:
                 if obj.is_(wv):
                     return True
@@ -2095,7 +1931,7 @@ class Table(Window):
 
     @property
     def waves(self):
-        return [Wave(path, self.app) for path in self._wave_paths()]
+        return [OLEIgorWave(path, self.app) for path in self._wave_paths()]
 
     def wave_at(self, column):
         return self._column_wave(column)

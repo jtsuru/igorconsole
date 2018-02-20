@@ -7,7 +7,7 @@ from collections import UserString
 
 import numpy as np
 
-from .exception import IgorTypeError
+from igorconsole.exception import IgorTypeError
 
 logger = logging.getLogger(__name__)
 

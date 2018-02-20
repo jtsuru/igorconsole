@@ -64,8 +64,8 @@ assert w3.name == "wave3"
 assert w3.parent.path == "root:"
 w3.reference
 
-assert igorconsole.oleconsole.Wave("root:wave3", igor).reference.Path(False, False) == "root:wave3"
-assert igorconsole.oleconsole.Wave(w3.reference, igor).reference.Path(False, False) == "root:wave3"
+assert igorconsole.Wave("root:wave3", igor).reference.Path(False, False) == "root:wave3"
+assert igorconsole.Wave(w3.reference, igor).reference.Path(False, False) == "root:wave3"
 
 assert not w3.is_inuse
 igor.display(igor.root.wave1)

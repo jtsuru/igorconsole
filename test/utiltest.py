@@ -1,4 +1,4 @@
-from igorconsole import utils
+from igorconsole.oleconsole import utils
 from igorconsole.exception import *
 
 import numpy as np
