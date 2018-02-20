@@ -1,13 +1,21 @@
+import operator as op
+
+import numpy as np
 from abc import ABC, abstractclassmethod, abstractstaticmethod, abstractmethod, abstractproperty 
 
-class ConvertableToIgorVariable(ABC):
+class ConvertableToIgorVariableMixin(ABC):
+    @abstractmethod
+    def _igorconsole_to_igorvariable(self):
+        pass
+
+class ConvertableToIgorWaveMixin(ABC):
     @abstractmethod
     def _igorconsole_to_igorwave(self):
         pass
 
-class ConvertableToIgorWaveBase(ABC):
+class ConvertableToIgorFolderMixin(ABC):
     @abstractmethod
-    def _igorconsole_to_igorwave(self):
+    def _igorconsole_to_igorfolder(self):
         pass
 
 def wave_unary_operator(self, operator):
@@ -16,12 +24,9 @@ def wave_unary_operator(self, operator):
     return ArrayOperatableLikeWave(operator(array), scalings, units)
 
 def wave_binary_operator(self, other, operator):
-    from .oleconsole import Wave
     info = self._igorconsole_to_igorwave()
     array, scalings, units = info["array"], info["scalings"], info["units"]
-    if isinstance(other, Wave):
-        array = operator(array, other.array)
-    elif hasattr(other, "_igorconsole_to_igorwave"):
+    if hasattr(other, "_igorconsole_to_igorwave"):
         otherinfo = other._igorconsole_to_igorwave()
         array = operator(array, otherinfo["array"])
     else:
@@ -41,7 +46,11 @@ def wave_binary_roperator(self, other, operator):
         array = operator(other, array)
     return ArrayOperatableLikeWave(array, scalings, units)
 
-class OperatableLikeIgorWave(ConvertableToIgorWaveBase):
+class OperatableLikeIgorWave(ConvertableToIgorWaveMixin):
+    _wave_unitary_operator = wave_binary_operator
+    _wave_binary_operator = wave_binary_roperator
+    _wave_binary_roperator = wave_binary_roperator
+
     def __len__(self):
         info = self._igorconsole_to_igorwave()
         return len(info["array"])
@@ -52,73 +61,73 @@ class OperatableLikeIgorWave(ConvertableToIgorWaveBase):
 
     #unary operations
     def __neg__(self):
-        return wave_unary_operator(self, op.neg)
+        return self._wave_unary_operator(op.neg)
 
     def __pos__(self):
-        return wave_unary_operator(self, op.pos)
+        return self._wave_unary_operator(op.pos)
 
     def __abs__(self):
-        return wave_unary_operator(self, op.abs)
+        return self._wave_unary_operator(op.abs)
 
     def __invert__(self):
-        return wave_unary_operator(self, op.invert)
+        return self._wave_unary_operator(op.invert)
 
     def __lt__(self, other):
-        return wave_binary_operator(self, other, op.lt).array
+        return self._wave_binary_operator(other, op.lt).array
 
     def __le__(self, other):
-        return wave_binary_operator(self, other, op.le).array
+        return self._wave_binary_operator(other, op.le).array
 
     def __eq__(self, other):
-        return wave_binary_operator(self, other, op.eq).array
+        return self._wave_binary_operator(other, op.eq).array
 
     def __gt__(self, other):
-        return wave_binary_operator(self, other, op.gt).array
+        return self._wave_binary_operator(other, op.gt).array
 
     def __ge__(self, other):
-        return wave_binary_operator(self, other, op.ge).array
+        return self._wave_binary_operator(other, op.ge).array
 
     def __add__(self, other):
-        return wave_binary_operator(self, other, op.add)
+        return self._wave_binary_operator(other, op.add)
 
     def __radd__(self, other):
-        return wave_binary_roperator(self, other, op.add)
+        return self._wave_binary_roperator(other, op.add)
 
     def __mul__(self, other):
-        return wave_binary_operator(self, other, op.mul)
+        return self._wave_binary_operator(other, op.mul)
 
     def __rmul__(self, other):
-        return wave_binary_roperator(self, other, op.mul)
+        return self._wave_binary_roperator(other, op.mul)
 
     def __sub__(self, other):
-        return wave_binary_operator(self, other, op.sub)
+        return self._wave_binary_operator(other, op.sub)
     
     def __rsub__(self, other):
-        return wave_binary_roperator(self, other, op.sub)
+        return self._wave_binary_roperator(other, op.sub)
 
     def __truediv__(self, other):
-        return wave_binary_operator(self, other, op.truediv)
+        return self._wave_binary_operator(other, op.truediv)
 
     def __rtruediv__(self, other):
-        return wave_binary_roperator(self, other, op.truediv)
+        return self._wave_binary_roperator(other, op.truediv)
     
     def __floordiv__(self, other):
-        return wave_binary_operator(self, other, op.floordiv)
+        return self._wave_binary_operator(other, op.floordiv)
     
     def __rfloordiv__(self, other):
-        return wave_binary_roperator(self, other, op.floordiv)
+        return self._wave_binary_roperator(other, op.floordiv)
 
     def __matmul__(self, other):
-        return wave_binary_operator(self, other, op.matmul)
+        return self._wave_binary_operator(other, op.matmul)
 
     def __rmatmul__(self, other):
-        return wave_binary_roperator(self, other, op.matmul)
+        return self._wave_binary_roperator(other, op.matmul)
 
     def __mod__(self, other):
-        return wave_binary_operator(self, other, op.mod)
+        return self._wave_binary_operator(other, op.mod)
 
     def __rmod__(self, other):
-        return wave_binary_roperator(self, other, op.mod)
+        return self._wave_binary_roperator(other, op.mod)
 
 class ArrayOperatableLikeWave(OperatableLikeIgorWave):
     def __init__(self, *args):

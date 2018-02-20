@@ -1,4 +1,6 @@
-from abc import ABC, abstractclassmethod, abstractstaticmethod, abstractmethod, abstractproperty 
+from abc import ABC, abstractclassmethod, abstractstaticmethod, abstractmethod, abstractproperty
+
+from igorconsole.abc.igorobjectlike import OperatableLikeIgorWave
 
 class IgorObjectBase(ABC):
     @abstractproperty
@@ -107,14 +109,9 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
     def array(self):
         pass
 
-    @abstractproperty
+    @abstractmethod
     def append(self, obj, keepscalings=True, keepunits=True):
-        length = self._length
-        if (length is not None) and length > APPEND_SWITCH:
-            self._append2(obj)
-        else:
-            self._append1(obj, keepscalings, keepunits)
-        f.make_wave(self.name, new_array)
+        pass
 
     @abstractproperty
     def ndim(self):
@@ -134,10 +131,6 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
 
     @abstractproperty
     def is_equiv(self, other):
-        pass
-
-    @abstractproperty
-    def _igorconsole_to_igorwave(self):
         pass
 
 
