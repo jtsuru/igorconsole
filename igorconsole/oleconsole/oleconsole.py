@@ -1233,14 +1233,6 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
             indice = None
         return pd.Series(self.array.flatten(), index=indice)
 
-
-    def resize(self, *shape):
-        # 5.9 ms
-        new_array = self.array
-        new_array.reshape(*shape)
-        f = self.parent
-        f.make_wave(self.name, new_array)
-
     @property
     def ndim(self):
         # 75.8 us
@@ -1310,8 +1302,6 @@ class Wave(IgorObjectBase, OperatableLikeIgorWave):
         return info
 
 
-
-
 class IgorObjectCollectionBase(ABC, c_abc.Mapping): #->MutableMapping
     def __init__(self, reference, app):
         self.reference = reference
@@ -1374,9 +1364,6 @@ class FolderCollection(IgorObjectCollectionBase):
     def add(self, name, overwrite=False):
         with TempFolder(self.app):
             return Folder(self.reference.Add(name, overwrite), self.app, input_check=False)
-
-    def copy(self):
-        return FolderCollection(self.reference, self.app)
     
     @staticmethod
     def addable(obj):
@@ -1531,7 +1518,7 @@ class WaveCollection(IgorObjectCollectionBase):
 
         if hasattr(val, "__iter__") and hasattr(val, "__getitem__"):
             self.add(key, val, overwrite=True)
-            
+
 
 class VariableCollection(IgorObjectCollectionBase):
     def __getitem__(self, key):
