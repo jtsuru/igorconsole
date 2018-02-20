@@ -1,7 +1,7 @@
 from abc import ABC, abstractclassmethod, abstractstaticmethod, abstractmethod, abstractproperty
 import collections.abc as c_abc
 
-from igorconsole.abc.igorobjectlike import OperatableLikeIgorWave
+from igorconsole.abc.igorobjectlike import OperatableLikeIgorWave, OperatableLikeIgorVariable
 
 class IgorObjectBase(ABC):
     @abstractproperty
@@ -87,7 +87,7 @@ class IgorFolderBase(IgorObjectBase):
         pass
 
 
-class IgorVariableBase(IgorObjectBase):
+class IgorVariableBase(IgorObjectBase, OperatableLikeIgorVariable):
     @abstractproperty
     def dtype(self):
         pass
@@ -96,12 +96,8 @@ class IgorVariableBase(IgorObjectBase):
     def value(self):
         pass
 
-    @abstractmethod
-    def _igorconsole_to_igorvariable(self):
-        pass
 
-
-class Wave(IgorObjectBase, OperatableLikeIgorWave):
+class IgorWaveBase(IgorObjectBase, OperatableLikeIgorWave):
     @abstractproperty
     def dtype(self):
         pass
