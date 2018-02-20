@@ -47,7 +47,7 @@ def wave_binary_roperator(self, other, operator):
     return ArrayOperatableLikeWave(array, scalings, units)
 
 class OperatableLikeIgorWave(ConvertableToIgorWaveMixin):
-    _wave_unitary_operator = wave_binary_operator
+    _wave_unary_operator = wave_unary_operator
     _wave_binary_operator = wave_binary_roperator
     _wave_binary_roperator = wave_binary_roperator
 

@@ -1,4 +1,5 @@
 from abc import ABC, abstractclassmethod, abstractstaticmethod, abstractmethod, abstractproperty
+import collections.abc as c_abc
 
 from igorconsole.abc.igorobjectlike import OperatableLikeIgorWave
 
