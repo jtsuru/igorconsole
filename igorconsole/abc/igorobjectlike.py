@@ -196,8 +196,16 @@ class OperatableLikeIgorVariable(OperatableLikeIgorObject, ConvertableToIgorVari
 
 class ArrayOperatableLikeWave(OperatableLikeIgorWave):
     def __init__(self, *args):
-        if isinstance(args, dict):
-            raise NotImplementedError()
+        if hasattr(args[0], "_igorconsole_to_igorwave"):
+            info = args[0]._igorconsole_to_igorwave()
+            self.array = info["array"]
+            self.scalings = info["scalings"]
+            self.units = info["units"]
+        elif isinstance(args[0], dict):
+            info = args[0]
+            self.array = info["array"]
+            self.scalings = info["scalings"]
+            self.units = info["units"]
         else:
             self.array = np.asarray(args[0])
             self.scalings = args[1]
@@ -214,3 +222,222 @@ class ArrayOperatableLikeWave(OperatableLikeIgorWave):
             "units": self.units
         }
         return info
+
+    #ndarray attributed
+    @property
+    def T(self):
+        return type(self)(self.array.T, self.scalings, self.units)
+
+    @property
+    def data(self):
+        return self.array.data
+
+    @property
+    def dtype(self):
+        return self.array.dtype
+
+    @property
+    def flags(self):
+        return self.array.flags
+
+    @property
+    def flat(self):
+        return self.array.flat
+
+    @property
+    def imag(self):
+        return self.array.imag
+
+    @property
+    def real(self):
+        return self.array.real
+    
+    @property
+    def size(self):
+        return self.array.size
+
+    @property
+    def imtemsize(self):
+        return self.array.imtemsize
+
+    @property
+    def nbytes(self):
+        return self.array.nbytes
+
+    @property
+    def ndim(self):
+        return self.array.ndim
+
+    @property
+    def shape(self):
+        return self.array.shape
+
+    @property
+    def strides(self):
+        return self.array.strides
+
+    @property
+    def ctypes(self):
+        return self.array.ctypes
+
+    @property
+    def base(self):
+        return self.array.base
+
+    #ndarray methods
+    def all(self, *args, **kwargs):
+        return self.array.all(*args, **kwargs)
+
+    def any(self, *args, **kwargs):
+        return self.array.any(*args, **kwargs)
+
+    def argmax(self, *args, **kwargs):
+        return self.array.argmax(*args, **kwargs)
+
+    def argmin(self, *args, **kwargs):
+        return self.array.argmin(*args, **kwargs)
+
+    def argpartition(self, *args, **kwargs):
+        return self.array.argpartition(*args, **kwargs)
+
+    def argsort(self, *args, **kwargs):
+        return self.array.argsort(*args, **kwargs)
+
+    def astype(self, *args, **kwargs):
+        return type(self)(self.array.astype(*args, **kwargs), self.scalings, self.units)
+
+    def byteswap(self, *args, **kwargs):
+        self.array.byteswap(*args, **kwargs)
+
+    def choose(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def clip(self, *args, **kwargs):
+        return type(self)(self.array.clip(*args, **kwargs), self.scalings, self.units)
+
+    def compress(self, *args, **kwargs):
+        return type(self)(self.array.compress(*args, **kwargs), self.scalings, self.units)
+
+    def conj(self, *args, **kwargs):
+        return type(self)(self.array.conj(*args, **kwargs), self.scalings, self.units)
+
+    def conjugate(self, *args, **kwargs):
+        return type(self)(self.array.conjugate(*args, **kwargs), self.scalings, self.units)
+
+    def copy(self, *args, **kwargs):
+        return type(self)(self.array.copy(*args, **kwargs), self.scalings, self.units)
+
+    def cumprod(self, *args, **kwargs):
+        return self.array.cumprod(*args, **kwargs)
+
+    def cumsum(self, *args, **kwargs):
+        return self.array.cumsum(*args, **kwargs)
+
+    def diagonal(self, *args, **kwargs):
+        return self.array.diagonal(*args, **kwargs)
+
+    def dot(self, b):
+        return self.__matmul__(b)
+
+    def fill(self, value):
+        self.array.fill(value)
+
+    def flatten(self, *args, **kwargs):
+        return type(self)(self.array.flatten(*args, **kwargs), self.scalings, self.units)
+
+    def item(self, *args):
+        return self.array.item(*args)
+
+    def itemset(self, *args):
+        self.array.itemset(*args)
+
+    def max(self, *args, **kwargs):
+        return self.array.max(*args, **kwargs)
+
+    def mean(self, *args, **kwargs):
+        return self.array.mean(*args, **kwargs)
+
+    def min(self, *args, **kwargs):
+        return self.array.min(*args, **kwargs)
+
+    def newbyteorder(self, *args, **kwargs):
+        return type(self)(self.array.newbyteorder(*args, **kwargs), self.scalings, self.units)
+
+    def nonzero(self):
+        return self.array.nonzero()
+
+    def partition(self, *args, **kwargs):
+        self.array.partition(*args, **kwargs)
+
+    def prod(self, *args, **kwargs):
+        return self.array.prod(*args, **kwargs)
+
+    def ptp(self, *args, **kwargs):
+        return self.array.ptp(*args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        self.array.put(*args, **kwargs)
+
+    def ravel(self, *args, **kwargs):
+        return self.array.ravel(*args, **kwargs)
+
+    def repeat(self, *args, **kwargs):
+        return self.array.repeat(*args, **kwargs)
+
+    def reshape(self, *args, **kwargs):
+        return self.array.reshape(*args, **kwargs)
+
+    def resize(self, *args, **kwargs):
+        self.array.resize(*args, **kwargs)
+
+    def round(self, *args, **kwargs):
+        return type(self)(self.array.round(*args, **kwargs), self.scalings, self.units)
+
+    def searchsorted(self, *args, **kwargs):
+        return self.array.searchsorted(*args, **kwargs)
+
+    def setfield(self, *args, **kwargs):
+        self.array.setfield(*args, **kwargs)
+
+    def setflags(self, *args, **kwargs):
+        self.array.setflags(*args, **kwargs)
+
+    def sort(self, *args, **kwargs):
+        self.array.sort(*args, **kwargs)
+
+    def squeeze(self, *args, **kwargs):
+        return self.array.squeeze(*args, **kwargs)
+
+    def std(self, *args, **kwargs):
+        return self.array.std(*args, **kwargs)
+
+    def sum(self, *args, **kwargs):
+        return self.array.sum(*args, **kwargs)
+
+    def swapaxes(self, *args, **kwargs):
+        #unit, scaling
+        return self.array.swapaxes(*args, **kwargs)
+
+    def take(self, *args, **kwargs):
+        return self.array.take(*args, **kwargs)
+
+    def tobytes(self, *args, **kwargs):
+        return self.array.tobytes(*args, **kwargs)
+
+    def tolist(self):
+        return self.array.tolist()
+
+    def tostring(self, *args, **kwargs):
+        return self.array.tostring(*args, **kwargs)
+
+    def trace(self, *args, **kwargs):
+        return self.array.trace(*args, **kwargs)
+
+    def transpose(self, *args, **kwargs):
+        return self.array.transpose(*args, **kwargs)
+
+    def var(self, *args, **kwargs):
+        return self.array.var(*args, **kwargs)
+
+    def view(self, *args, **kwargs):
+        return type(self)(self.array.view(*args, **kwargs), self.scalings, self.units)
