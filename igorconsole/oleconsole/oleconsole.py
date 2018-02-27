@@ -28,7 +28,7 @@ import win32com.client
 from igorconsole.oleconsole import comutils, utils
 import igorconsole.oleconsole.oleconsts as csts
 from igorconsole.abc.igorobjects import IgorObjectBase, IgorFolderBase, IgorVariableBase, IgorWaveBase, IgorObjectCollectionBase
-
+from igorconsole.abc.igorobjectlike import NdArrayMethodMixin
 logger = logging.getLogger(__name__)
 
 
@@ -72,7 +72,7 @@ class IgorApp:
         self._version = None
 
     @classmethod
-    def run(cls, visible=True):
+    def run(cls, visible=False):
         """Run a new igor instance and connect.
         Params:
             visible (bool): set if show igor  window or not.
@@ -83,7 +83,8 @@ class IgorApp:
         """
         result = IgorApp()
         com = win32com.client.Dispatch("IgorPro.Application")
-        com.Visible = visible
+        if visible:
+            com.Visible = True
         result.reference = com
         if 7.0 <= result.version < 7.07:
             # to prevent crashing
@@ -93,7 +94,7 @@ class IgorApp:
         return result
 
     @classmethod
-    def connect(cls, visible=True):
+    def connect(cls, visible=False):
         """Connect to an existing igor instance.
         Params:
             visible (bool): set if show igor window or not.
@@ -105,7 +106,8 @@ class IgorApp:
         """
         result = IgorApp()
         com = win32com.client.GetActiveObject("IgorPro.Application")
-        com.Visible = visible
+        if visible:
+            com.Visible = True
         result.reference = com
         if 7.0 <= result.version < 7.07:
             # to prevent crashing
@@ -115,7 +117,7 @@ class IgorApp:
         return result
 
     @classmethod
-    def start(cls, visible=True):
+    def start(cls, visible=False):
         """Connecting to the igor instance if exists, else make a new instance.
         Params:
             visible (bool): set if show igor  window or not.
@@ -1027,9 +1029,8 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
         else:
             return np.array(self._array(), dtype=dtype)
 
-    @array.setter
-    def array(self, obj):
-        self.parent.make_wave(self.name, obj)
+    def toarray(self):
+        return self.array
 
     def _array(self):
         return self.reference.GetNumericWaveData(utils.to_igor_data_type(self.dtype))
@@ -1069,7 +1070,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
             indice = None
         else:
             indice = None
-        return pd.Series(self.array.flatten(), index=indice)
+        return pd.Series(self.array.ravel(), index=indice)
 
     @property
     def ndim(self):
@@ -1120,22 +1121,97 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
         return self.path == other.path
 
     def is_equiv(self, other):
-        return np.all(self.array == other.array) and np.all(self.parray == other.parray)
+        if not hasattr(other, "_igorconsole_to_igorwave"):
+            return False
+        selfinfo = self._igorconsole_to_igorwave()
+        otherinfo = other._igorconsole_to_igorwave()
+        try:
+            if selfinfo["scalings"] != otherinfo["scalings"]:
+                return False
+            if selfinfo["units"] != otherinfo["units"]:
+                return False
+            return np.all(selfinfo["array"] == otherinfo["array"])
+        except KeyError:
+            return False
 
-    def __getattr__(self, key):
-        if key.startswith("__"):
-            raise AttributeError()
-        elif hasattr(np.ndarray, key):
-            return np.ndarray.__getattribute__(self, key)
-        else:
-            raise AttributeError()
+    #inplace
+    def fill(self, value):
+        info = self._igorconsole_to_igorwave()
+        info["array"].fill(value)
+        self.parent.waves[self.name] = info
+
+    #inplace
+    def itemset(self, *args):
+        info = self._igorconsole_to_igorwave()
+        info["array"].itemset(*args)
+        self.parent.waves[self.name] = info
+
+    #inplace
+    def partition(self, *args, **kwargs):
+        info = self._igorconsole_to_igorwave()
+        info["array"].partition(*args, **kwargs)
+        self.parent.waves[self.name] = info
+
+    #inplace
+    def put(self, *args, **kwargs):
+        info = self._igorconsole_to_igorwave()
+        info["array"].put(*args, **kwargs)
+        self.parent.waves[self.name] = info
+
+    #inplace
+    def resize(self, *args, **kwargs):
+        info = self._igorconsole_to_igorwave()
+        info["array"].resize(*args, **kwargs)
+        self.parent.waves[self.name] = info
+
+    #inplace
+    def setfield(self, *args, **kwargs):
+        info = self._igorconsole_to_igorwave()
+        info["array"].setfield(*args, **kwargs)
+        self.parent.waves[self.name] = info
+
+    #inplace
+    def sort(self, *args, **kwargs):
+        info = self._igorconsole_to_igorwave()
+        info["array"].sort(*args, **kwargs)
+        self.parent.waves[self.name] = info
+
+    #inplace
+    @NdArrayMethodMixin.imag.setter
+    def imag(self, obj):
+        info = self._igorconsole_to_igorwave()
+        info["array"].imag = obj
+        self.parent.waves[self.name] = info
+
+    #inplace
+    @NdArrayMethodMixin.real.setter
+    def real(self, obj):
+        info = self._igorconsole_to_igorwave()
+        info["array"].real = obj
+        self.parent.waves[self.name] = info
+
+    #inplace
+    @NdArrayMethodMixin.shape.setter
+    def shape(self, obj):
+        info = self._igorconsole_to_igorwave()
+        info["array"].shape = obj
+        self.parent.waves[self.name] = info
+
+    #inplace
+    @NdArrayMethodMixin.strides.setter
+    def stridesl(self, obj):
+        info = self._igorconsole_to_igorwave()
+        info["array"].strides = obj
+        self.parent.waves[self.name] = info
+
+    toarray = array
 
     def _igorconsole_to_igorwave(self):
         info = {
             "type": "IgorWave",
             "array": self.array,
-            "scalings": [self.get_scaling(i) for i in range(-1, 4)],
-            "units": [self.get_unit(i) for i in range(-1, 4)]
+            "scalings": tuple(self.get_scaling(i) for i in range(-1, 4)),
+            "units": tuple(self.get_unit(i) for i in range(-1, 4))
         }
         return info
 
@@ -1573,8 +1649,8 @@ class Graph(Window):
     def style(self, style:str):
         if os.path.exists("{0}/igorconsole/styles/{1}.json".format(HOME_DIR, style)):
             fpath = "{0}/igorconsole/styles/{1}.json".format(HOME_DIR, style)
-        elif os.path.exists("{0}/styles/{1}.json".format(PATH,style)):
-            fpath = "{0}/styles/{1}.json".format(PATH,style)
+        elif os.path.exists("{0}/../styles/{1}.json".format(PATH,style)):
+            fpath = "{0}/../styles/{1}.json".format(PATH,style)
         else:
             raise ValueError("Cannot find the style file.")
         with open(fpath, "rt") as f:
