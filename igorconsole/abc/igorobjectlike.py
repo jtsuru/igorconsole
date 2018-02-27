@@ -25,7 +25,7 @@ class ConvertableToNdArray(ABC):
     def toarray(self):
         pass
 
-class OperatableLikeIgorObject:
+class OperatableLikeIgorObject(ABC):
     @abstractmethod
     def _unary_operation(self, operator):
         pass
@@ -276,6 +276,11 @@ class NdArrayMethodMixin:
         units = info["units"]
         return self._return_type(array.imag, scalings, units)
 
+    @imag.setter
+    @abstractmethod
+    def imag(self, obj):
+        pass
+
     @property
     def real(self):
         info = self._igorconsole_to_igorwave()
@@ -284,6 +289,11 @@ class NdArrayMethodMixin:
         units = info["units"]
         return self._return_type(array.real, scalings, units)
     
+    @real.setter
+    @abstractmethod
+    def real(self, obj):
+        pass
+    
     @property
     def size(self):
         info = self._igorconsole_to_igorwave()
@@ -291,7 +301,7 @@ class NdArrayMethodMixin:
         return array.size
 
     @property
-    def imtemsize(self):
+    def itemsize(self):
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.itemsize
@@ -314,11 +324,21 @@ class NdArrayMethodMixin:
         array = info["array"]
         return array.shape
 
+    @shape.setter
+    @abstractmethod
+    def shape(self, obj):
+        pass
+
     @property
     def strides(self):
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.strides
+
+    @strides.setter
+    @abstractmethod
+    def strides(self, obj):
+        pass
 
     #ndarray methods
     def all(self, *args, **kwargs):
@@ -433,11 +453,12 @@ class NdArrayMethodMixin:
     def diagonal(self, *args, **kwargs):
         info = self._igorconsole_to_igorwave()
         array = info["array"]
-        array = array.cumsum(*args, **kwargs)
         return array.diagonal(*args, **kwargs)
 
     def dot(self, b):
-        return self.__matmul__(b)
+        info = self._igorconsole_to_igorwave()
+        array = info["array"]
+        return array.dot(b)
 
     def flatten(self, *args, **kwargs):
         info = self._igorconsole_to_igorwave()
@@ -572,14 +593,14 @@ class NdArrayMethodMixin:
         return_units = units[0],
         for i in range(4):
             if i == axis1:
-                return_scalings += scalings[axis2+1]
-                return_units += units[axis2+1]
+                return_scalings += scalings[axis2+1],
+                return_units += units[axis2+1],
             elif i == axis2:
-                return_scalings += scalings[axis1+1]
-                return_units += units[axis1+1]
+                return_scalings += scalings[axis1+1],
+                return_units += units[axis1+1],
             else:
-                return_scalings += scalings[i+1]
-                return_units += units[i+1]
+                return_scalings += scalings[i+1],
+                return_units += units[i+1],
         return self._return_type(array, return_scalings, return_units)
 
     def take(self, *args, **kwargs):
@@ -602,7 +623,9 @@ class NdArrayMethodMixin:
 
 class ArrayOperatableLikeWave(OperatableLikeIgorWave,
     NdArrayMethodMixin, ConvertableToNdArray):
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
+        if args == () and "scalings" in kwargs and "units" in kwargs and "array" in kwargs:
+            args = (kwargs["array"], kwargs["scalings"], kwargs["units"])
         if hasattr(args[0], "_igorconsole_to_igorwave"):
             info = args[0]._igorconsole_to_igorwave()
             self.array = info["array"]
@@ -619,11 +642,18 @@ class ArrayOperatableLikeWave(OperatableLikeIgorWave,
             self.units = args[2]
     
     def __repr__(self):
-        return repr(self.array)
+        reprstr= "ArrayOperatableLikeWave("\
+            + "scalings={}\n,".format(self.scalings)\
+            + "units={}\n,".format(self.units)\
+            + "array="\
+            + "{}\n".format(self.array)\
+            + ")"
+        return reprstr
 
     def _igorconsole_to_igorwave(self):
         info = {
             "type": "IgorWave",
+            "version": 1,
             "array": self.array,
             "scalings": self.scalings,
             "units": self.units
@@ -658,5 +688,48 @@ class ArrayOperatableLikeWave(OperatableLikeIgorWave,
     def sort(self, *args, **kwargs):
         self.array.sort(*args, **kwargs)
     
+    #inplace
+    @NdArrayMethodMixin.imag.setter
+    def imag(self, obj):
+        self.array.imag = obj
+
+    #inplace
+    @NdArrayMethodMixin.real.setter
+    def real(self, obj):
+        self.array.real = obj
+
+    #inplace
+    @NdArrayMethodMixin.shape.setter
+    def shape(self, obj):
+        self.array.shape = obj
+
+    #inplace
+    @NdArrayMethodMixin.strides.setter
+    def strides(self, obj):
+        self.array.stries = obj
+
     def toarray(self):
         return np.array(self.array)
+
+    def append(self, obj, keepscaling=True, keepunits=True):
+        array = self.array
+        dtype= array.dtype
+        obj = np.array(obj, dtype=dtype, ndmin=1)
+        self.array = np.concatenate([array, obj])
+    
+    def is_(self, other):
+        return self is other
+    
+    def is_equiv(self, other):
+        if not hasattr(other, "_igorconsole_to_igorwave"):
+            return False
+        selfinfo = self._igorconsole_to_igorwave()
+        otherinfo = other._igorconsole_to_igorwave()
+        try:
+            if selfinfo["scalings"] != otherinfo["scalings"]:
+                return False
+            if selfinfo["units"] != otherinfo["units"]:
+                return False
+            return np.all(selfinfo["array"] == otherinfo["array"])
+        except KeyError:
+            return False

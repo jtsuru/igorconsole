@@ -1,7 +1,7 @@
 from abc import ABC, abstractclassmethod, abstractstaticmethod, abstractmethod, abstractproperty
 import collections.abc as c_abc
 
-from igorconsole.abc.igorobjectlike import OperatableLikeIgorWave, OperatableLikeIgorVariable
+from igorconsole.abc.igorobjectlike import OperatableLikeIgorWave, OperatableLikeIgorVariable, ConvertableToNdArray, NdArrayMethodMixin
 
 class IgorObjectBase(ABC):
     @abstractproperty
@@ -97,29 +97,13 @@ class IgorVariableBase(IgorObjectBase, OperatableLikeIgorVariable):
         pass
 
 
-class IgorWaveBase(IgorObjectBase, OperatableLikeIgorWave):
-    @abstractproperty
-    def dtype(self):
-        pass
-
+class IgorWaveBase(IgorObjectBase, OperatableLikeIgorWave, ConvertableToNdArray, NdArrayMethodMixin):
     @abstractproperty
     def array(self):
         pass
 
     @abstractmethod
     def append(self, obj, keepscalings=True, keepunits=True):
-        pass
-
-    @abstractproperty
-    def ndim(self):
-        pass
-
-    @abstractproperty
-    def shape(self):
-        pass
-
-    @abstractproperty
-    def size(self):
         pass
 
     @abstractproperty
