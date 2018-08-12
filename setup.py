@@ -20,7 +20,7 @@ setup(
     extras_require={
         "plot": ["matplotlib"],
         "image": ["Pillow"],
-        "dframe": ["pandas"]
+        "dframe": ["pandas"],
     },
     classifiers=[
         "Development Status :: 1 - Planning",

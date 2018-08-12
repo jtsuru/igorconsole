@@ -142,17 +142,23 @@ def main():
     igor.root.a = a
     assert np.all(igor.root.a.reshape(5,6) == a.reshape(5,6))
     test(igor, igor.root.a, a)
+    test(igor, igor.root.a+1, a+1)
     b = np.arange(100).reshape(10,10) + 1
     igor.root.b = b
     assert np.all(igor.root.b.reshape(10,10) == b.reshape(10,10))
     test(igor, igor.root.b, b)
+    test(igor, igor.root.b+1, b+1)
     test2d(igor, igor.root.b, b)
+    test2d(igor, igor.root.b+1, b+1)
     c = np.arange(3**3).reshape(3,3,3) + 3J
     igor.root.c = c
     assert np.all(igor.root.c.reshape(3,9) == c.reshape(3,9))
     test(igor, igor.root.c, c)
     test2d(igor, igor.root.c, c)
     test3d(igor, igor.root.c, c)
+    test(igor, igor.root.c+1, c+1)
+    test2d(igor, igor.root.c+1, c+1)
+    test3d(igor, igor.root.c+1, c+1)
     d = np.arange(4**4, dtype=np.float32).reshape([4]*4) + 1
     igor.root.d = d
     assert np.all(igor.root.d.reshape(8,32) == d.reshape(8,32))
@@ -160,6 +166,11 @@ def main():
     test2d(igor, igor.root.d, d)
     test3d(igor, igor.root.d, d)
     test4d(igor, igor.root.d, d)
+    test(igor, igor.root.d+1, d+1)
+    test2d(igor, igor.root.d+1, d+1)
+    test3d(igor, igor.root.d+1, d+1)
+    test4d(igor, igor.root.d+1, d+1)
 
 if __name__ == "__main__":
     main()
+    print("OK")

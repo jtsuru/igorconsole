@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 prod = functools.partial(functools.reduce, operator.mul)
 
 def _as_np_type(obj):
-    if isinstance(obj, type) and issubclass(obj, (np.number, np.bool_)):
+    if isinstance(obj, type) and issubclass(obj, (np.number, np.bool_, np.object_)):
         return obj
     elif isinstance(obj, np.dtype):
         return obj.type
     else:
-        raise ValueError("Not numpy dtype object.")
+        raise ValueError("{} is not a numpy dtype object.".format(obj))
 
 def obvious_dtype(obj):
     """Return a numpy dtype in obvious precision.
@@ -189,3 +189,44 @@ def iscomplex(obj):
 
 def isstr(obj):
     return isinstance(obj, (str, UserString))
+
+def from_pd_DataFrame(df):
+    df = df.fillna(np.nan)
+    info = {
+        "type": "IgorFolder",
+        "version": 1,
+        "subfolders": {},
+    }
+    if obvious_dtype(df.index.dtype) == np.int64:
+        if np.all(-2**31 <= df.index) and np.all(df.index <= 2**31 - 1):
+            contents = {"index": np.asarray(df.index, dtype=np.int32)}
+        elif np.all(0 <= df.index) and np.all(df.index <= 2**32 - 1):
+            contents = {"index": np.asarray(df.index, dtype=np.uint32)}
+        elif np.all(-2**53 + 1 <= df.index) and np.all(df.index <= 2**53 - 1):
+            contents = {"index": np.asarray(df.index, dtype=np.float64)}
+        else:
+            raise ValueError("index cannot be cast to igor dtype")
+    else:
+        contents = {"index": np.asarray(df.index)}
+    for key, series in df.items():
+        #if series.dtype.type is np.object_:
+        #    try:
+        #        series = np.array(series, dtype=np.float64)
+        #    except ValueError:
+        #        pass
+        contents[str(key)] = series
+    info["contents"] = contents
+    return info
+
+def to_pd_DataFrame(finfo):
+    import pandas as pd
+    contents = finfo["contents"]
+    waves = {i: v["array"] for i, v in contents.items() if v["type"] == "IgorWave"}
+    if "index" in waves:
+        index = waves["index"]
+        del waves["index"]
+        result = pd.DataFrame.from_dict(waves)
+        result.index = index
+        return result
+    else:
+        return pd.DataFrame.from_dict(waves)

@@ -10,7 +10,8 @@ import logging
 from tqdm import tqdm
 
 igor = igorconsole.run()
-
+assert igor.is_visible == False
+igor.show()
 assert igor.is_visible == True
 igor.hide()
 assert igor.is_visible == False

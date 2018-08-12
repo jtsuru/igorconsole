@@ -174,16 +174,20 @@ class IgorApp:
             values (str): igor command.
             logged (bool): leave a command in the history area.
         Returns:
-            int, float, or str: Evaluated value.
+            value (int, float, or str): Evaluated value.
         Examples:
-            import igorconsole; import numpy as np
-            igor = igorconsole.start()
-            igor.get_value("1+1") -> 2.0
-            igor.get_value("4 * sin(pi/2)") -> 4.0
-
-            igor.root.linear = np.arange(100) # make a new int wave at root:linear
-            igor.get_value("linear[3]") -> 3.0 # get as a float
-            igor.root.linear[3] -> 3 # check
+            >>> import igorconsole
+            >>> import numpy as np
+            >>> igor = igorconsole.start()
+            >>> igor.get_value("1+1")
+            2.0
+            >>> igor.get_value("4 * sin(pi/2)")
+            4.0
+            >>> igor.root.linear = np.arange(100)
+            >>> igor.get_value("linear[3]")
+            3.0
+            >>> igor.root.linear[3]
+            3
         """
         def convert(val):
             try:
@@ -211,7 +215,7 @@ class IgorApp:
 
     @property
     def fullpath(self):
-        "Path of the igor program."
+        """Path of the igor program."""
         return self.reference.FullName
 
     @property
@@ -219,21 +223,39 @@ class IgorApp:
         """Name of the instance
         Returns:
             str: 'Igor Pro'
+        Examples:
+            >>> import igorconsole
+            >>> igor = igorconsole.start()
+            >>> igor.name
+            'Igor Pro'    
         """
         return self.reference.Name
 
     @property
     def is_visible(self):
+        """Return if igor application is visible or not.
+        Returns:
+            is_visible (bool): True if igor is shown, Valse if hidden.
+        Examples:
+            >>> import igorconsole
+            >>> igor = igorconsole.start(visible=False)
+            >>> igor.is_visible
+            False
+            >>> igor.show()
+            >>> igor.is_visible
+            True
+        """
         return self.reference.Visible
 
     def status1(self, int_):
+        """Wrapper of IgorApplication.Status1"""
         return self.reference.Status1(int_)
 
     @property
     def version(self):
         """Version of the igor
         Returns:
-            float: version
+            version (float): version of igor pro.
         """
         if self._version is None:
             self._version = self.status1(csts.Status.IgorVersion)
@@ -241,7 +263,7 @@ class IgorApp:
 
     @property
     def is_procedure_running(self):
-        "Returns True if a user procedure is running."
+        """Returns True if a user procedure is running."""
         return bool(self.status1(csts.Status.RunningProcedure))
 
     @property
@@ -277,6 +299,8 @@ class IgorApp:
     write = write_history
     
     def print(self, *objects, sep=" ", end="\n"):
+        """Print strings on igor history.
+        """
         write = self.write_history
         firstline = True
         for item in objects:
@@ -308,12 +332,31 @@ class IgorApp:
 
 
     def load_experiment(self, filepath, loadtype=csts.LoadType.Open):
+        """Load existing experiment file.
+        Args:
+            filepath (str): path to the experiment file.
+            loadtype (int): Load type the experiment file.
+                The default value is igorconsole.oleconsts.LoadType.Open
+                igorconsole.oleconsts.LoadType.Open or 2: open file
+                igorconsole.oleconsts.LoadType.Marge or 5: marge files.
+                igorconsole.oleconsts.LoadType.Stationery or 4: open filea s a new file.
+        Note:
+            You can use IgorApp.load_experiment_as_newfile or IgorApp.merge_experiment instead.
+        """
         self.reference.LoadExperiment(0, loadtype, "", filepath)
 
     def load_experiment_as_newfile(self, filepath):
+        """Load existing experiment file as a new file..
+        Args:
+            filepath (str): path to the experiment file.
+        """
         self.load_experiment(filepath, loadtype=csts.LoadType.Stationery)
 
     def merge_experiment(self, filepath):
+        """Load existing experiment file and marge it.
+        Args:
+            filepath (str): path to the experiment file.
+        """
         self.load_experiment(filepath, loadtype=csts.LoadType.Merge)
 
     def _save(self, filepath, savetype=csts.SaveType.Save,
@@ -322,19 +365,18 @@ class IgorApp:
                                          symbolicpathname, filepath)
 
     def save(self, filepath="", filetype=csts.ExpFileType.Default):
-        "Save and overwrite the current experiment file."
+        """Save and overwrite the current experiment file."""
         self._save(filepath, savetype=csts.SaveType.Save, filetype=filetype)
 
     def save_as(self, filepath, filetype=csts.ExpFileType.Default,
                 symbolicpathname="", overwrite=False):
         """Save the current project as a new experiment file.
         Params:
-            filepath (str): save destimation.
+            filepath (str): save destination.
             filetype (int): experiment file type.
                 -1: Devault
                  0: Unpacked
                  1: Packed
-
         """
         if (not overwrite) and os.path.exists(filepath):
             raise FileExistsError
@@ -343,13 +385,29 @@ class IgorApp:
 
     def save_copy(self, filepath, filetype=csts.ExpFileType.Default,
                   symbolicpathname="", overwrite=False):
+        """Save the current project as a copy.
+        Params:
+            filepath (str): save destination.
+            filetype (int): experiment file type.
+                -1: Devault
+                 0: Unpacked
+                 1: Packed
+        """
         if (not overwrite) and os.path.exists(filepath):
-            raise FileExistsError
+            raise FileExistsError("A file already exists at the directed path..")
         self._save(filepath, savetype=csts.SaveType.SaveCopy,
                    filetype=filetype, symbolicpathname=symbolicpathname)
 
     def open_file(self, filepath, filekind="procedure",
                   readonly=False, invisible=False, symbolicpathname=""):
+        """Open a file.
+        Params:
+            filepath (str): file path.
+            filekind (str): "procedure", "notebook" or "help". 
+                The default value is "procedure".
+            readonly (bool): The default value is False.
+                Make this value True when you want make the file in read-only mode.
+        """
         readonly = csts.OpenFile.ReadOnly if readonly else 0b00
         invisible = csts.OpenFile.Invisible if invisible else 0b00
         opentype = readonly | invisible
@@ -364,6 +422,12 @@ class IgorApp:
         self.reference.OpenFile(opentype, filekind, symbolicpathname, filepath)
 
     def quit(self, only_when_saved=True):
+        """Close igor pro application.
+            Args:
+                only_when_saved (bool): The default value is True.
+                    If this value is Ture, igor pro application will not be closed
+                    when the expeirment file is updated after the last save.
+        """
         if only_when_saved and self.is_experiment_modified:
             warnings.warn("This file is not saved."
                           + "Please make 'True' only_when_saved flag.")
@@ -371,6 +435,7 @@ class IgorApp:
         if self.version < 7.0:
             self.reference.Quit()
         else:
+            #todo: ?
             wmi = win32com.client.GetObject("winmgmts:")
             number_of_igor_instance = lambda: len([item for item in wmi.InstancesOf("Win32_Process")
                 if item.Properties_("Name").Value == "Igor.exe"])
@@ -379,39 +444,53 @@ class IgorApp:
             while number_of_igor_instance() >= initial_instance_num > 0:
                 time.sleep(0)
 
-
     def quit_wo_save(self):
+        """Close igor pro application without saving even the experiment file is updated."""
         self.quit(only_when_saved=False)
 
     @property
     def data(self):
+        """Root directory of the data in igor pro."""
         return OLEIgorFolder("root:", self)
 
     root = data
 
     @property
     def cwd(self):
+        """Current working directory set in Igor pro."""
         cwd_path = self.execute("fprintf 0, getdatafolder(1)")[1][0]
         return OLEIgorFolder(cwd_path, self)
 
     def window_names(self, wintype):
+        """List up the name of windows on Igor pro.
+        Args:
+            wintype (int): window type.
+                Graph: 1
+                Table: 2
+                Layout: 4
+                Panel: 64
+        """
         return self.execute(r'fprintf 0, winlist("*", ";", "win:'
                             + str(wintype) + r'")')[1][0].split(";")[:-1]
 
     @property
     def graphs(self):
+        """List up the graph windows."""
         return [Graph(item, self) for item in self.window_names(csts.WindowType.Graph)]
 
     @property
     def tables(self):
+        """List up talbes."""
         return [Table(item, self) for item  in self.window_names(csts.WindowType.Table)]
 
     @property
     def layouts(self):
+        """List up the layout windows."""
         return [Layout(item, self) for item in  self.window_names(csts.WindowType.Layout)]
 
     @property
     def panels(self):
+        """List up panels."""
         return [Panel(item, self) for item in self.window_names(csts.WindowType.Panel)]
 
     def win_exists(self, name):
@@ -576,6 +655,11 @@ class IgorApp:
         self.execute('NewPath/O/C igorconsole_path "{}"'.format(path))
 
     def append_to_waves(self, waves, vals):
+        """Append multiple values to multiple waves respectively.
+        Args:
+            waves (list of OLEIgorWave): waves to which values are appended.
+            vals (list of scalar values): values to append. 
+        """
         wave_paths = np.array([w.quoted_path for w in waves])
         shapes = [w.shape for w in waves]
         lengths = [0 if not s else s[0] for s in shapes]
@@ -660,12 +744,30 @@ class IgorApp:
             wv[-1] = v
 
     def wave(self, path:str):
+        """quicly return a Wave specified by path.
+        Args:
+            path (str): full path to the wave.
+        Returns:
+            wave: specified wave.
+        """
         return OLEIgorWave(path, self)
 
     def folder(self, path:str):
+        """quicly return a Folder specified by path.
+        Args:
+            path (str): full path to the folder.
+        Returns:
+            folder: specified folder.
+        """
         return OLEIgorFolder(path, self)
 
     def variable(self, path:str):
+        """quicly return a Variable specified by path.
+        Args:
+            path (str): full path to the variable.
+        Returns:
+            variable: specified variable.
+        """
         return OLEIgorVariable(path, self)
 
 
@@ -675,18 +777,22 @@ class OLEIgorObjectBase(IgorObjectBase):
 
     @property
     def path(self):
+        """Unquoted full path to the Igor object."""
         return self._path(relative=False, quoted=False)
 
     @property
     def quoted_path(self):
+        """Quoted full path to the Igor object."""
         return self._path(relative=False, quoted=True)
 
     @property
     def name(self):
+        """Name of the Igor object."""
         return self.reference.Name
 
     @property
     def parent(self):
+        """Parent folder of the object"""
         return OLEIgorFolder(self.reference.ParentDataFolder, self.app, input_check=False)
 
     @property
@@ -711,6 +817,7 @@ class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
 
     @property
     def is_inuse(self):
+        """True if the data in this folder is used in any graphs or tables."""
         return self.reference.InUse
 
     @property
@@ -753,7 +860,7 @@ class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
             return temp[key]
 
         temp = self.waves
-        if key in temp:#バグのせいで遅い。
+        if key in temp:#Slow because of the bug of igor pro.
             return temp[key]
 
         if not isinstance(key, str):
@@ -779,33 +886,70 @@ class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
 
     @property
     def subfolders(self):
+        """Collection of the subfolders in this folder."""
         return OLEIgorFolderCollection(self.reference.SubDataFolders, self.app)
 
     @property
     def waves(self):
+        """Collection of the waves in this folder."""
         return OLEIgorWaveCollection(self.reference.Waves, self.app, self)
 
     @property
     def variables(self):
+        """Collection of the variables in this folder."""
         return OLEIgorVariableCollection(self.reference.Variables, self.app)
 
 
     def make_folder(self, name, overwrite=False):
+        """Make a new folder.
+        Args:
+            name (str): name of the folder.
+            overwrite (bool): Overwrite existing folder if True.
+                The default value is False.
+        Returns:
+            folder: Made folder.
+        """
         return self.subfolders.add(name, overwrite)
 
     def make_wave(self, name, array_like=None, shape=None, overwrite=True, dtype=None):
+        """Make a new wave.
+        Args:
+            name (str): name of the wave.
+            array_like (array or list): Optional. Data for the made wave.
+            shape (tuple): Optional. You can specify the shape of the wave when array_like is not specified.
+            overwrite (bool): Overwrite existing wave if True.
+                The default value is True.
+            dtype (np.dtype): data type of the wave.
+        Returns:
+            wave: Made wave.
+        """
         return self.waves.add(name, array_like, shape=shape, overwrite=overwrite, dtype=dtype)
 
     def make_variable(self, name, value, overwrite=True):
+        """Make a new wave.
+        Args:
+            name (str): name of the wave.
+            value (int, float or str): value of the variable.
+            overwrite (bool): Overwrite existing variable if True.
+                The default value is True.
+        Returns:
+            variable: Made variable.
+        """
         return self.variables.add(name, value, overwrite=overwrite)
 
     def chdir(self):
+        """Change current directory to this folder."""
         self.app.execute("cd {}".format(self.quoted_path), logged=False)
 
     def delete_folder(self, target):
+        """Delete subfolder of this folder.
+        Args:
+            target (name): name of the subfolder.
+        """
         self._data_folders_ref.Remove(target)
 
     def delete(self):
+        """Delite this folder."""
         set_ = lambda i, p: self.setattr(i, p)
         parent = self.parent
         name = self.path.split(":")[-2]
@@ -814,6 +958,20 @@ class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
         parent.delete_folder(name)
     
     def walk(self, limit_depth=float("inf"), shallower_limit=0, method="dfs"):
+        """Walk around the subfolders, like os.walk.
+        Args:
+            limit_depth (int): limit of the depth of the subfolder.
+                default value is infinit.
+            shallower_limit (int): shallower limit of the scanning.
+                defaut value is 0.
+            methods (str): You can select "dfs" or "bfs".
+                default values is "dfs". 
+        Yields:
+            OLEIgorFolder: Current scanning directory.
+            OLEIgorFolderCollection: Subfolders of the directory.
+            OLEIgorVariableCollection: variables of the directory.
+            OLEIgorWaveCollection: waves of the directory.
+        """
         def get_children(depth, subfolders):
             children = [(depth+1, folder) for folder in subfolders]
             if method == "dfs":
@@ -837,6 +995,10 @@ class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
             if depth < limit_depth:
                 deq.extend(get_children(depth, subfolders))
     
+    def to_DataFrame(self):
+        """Convert igor folder to pandas.DataFrame"""
+        return utils.to_pd_DataFrame(self._igorconsole_to_igorfolder())
+
     def _igorconsole_to_igorfolder(self):
         folders = {}
         for f in self.subfolders:
@@ -893,10 +1055,12 @@ class OLEIgorVariable(OLEIgorObjectBase, IgorVariableBase):
 
     @property
     def dtype(self):
+        """Data type of the variable"""
         return utils.to_npdtype(self.reference.DataType)
 
     @property
     def value(self):
+        """Value of the variable"""
         dtype = self.dtype
         if dtype == np.complex128:
             return complex(*self.reference.GetNumericValue())
@@ -906,6 +1070,7 @@ class OLEIgorVariable(OLEIgorObjectBase, IgorVariableBase):
             return self.reference.GetStringValue(CODEPAGE)
 
     def delete(self):
+        """Currently not implemented."""
         raise NotImplementedError()
 
     def __repr__(self):
@@ -918,6 +1083,33 @@ class OLEIgorVariable(OLEIgorObjectBase, IgorVariableBase):
         }
         return info
 
+    def __iadd__(self, other):
+        self.parent.waves[self.name] = self + other
+        return self
+
+    def __isub__(self, other):
+        self.parent.waves[self.name] = self - other
+        return self
+
+    def __imul__(self, other):
+        self.parent.waves[self.name] = self * other
+        return self
+
+    def __itruediv__(self, other):
+        self.parent.waves[self.name] = self / other
+        return self
+
+    def __ifloordiv__(self, other):
+        self.parent.waves[self.name] = self // other
+        return self
+
+    def __imod__(self, other):
+        self.parent.waves[self.name] = self % other
+        return self
+
+    def __ipow__(self, other):
+        self.parent.waves[self.name] = self ** other
+        return self
 
 class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     def __init__(self, reference, app, *, input_check=True):
@@ -933,10 +1125,12 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
             raise TypeError("reference is not a Wave")
 
     def delete(self):
+        """Currently not implemented."""
         raise NotImplementedError()
 
     @property
     def is_inuse(self):
+        """True if the wave is used in any graphs of tables."""
         return self.reference.InUse
 
     @staticmethod
@@ -976,6 +1170,12 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
             self.reference.SetScaling(dimension, grad, init)
 
     def position(self, index):
+        """Calculate coordinates of position from the index of the wave.
+        Args:
+            index (array_like): index of the points of the wave.
+        Returns:
+            numpy.ndarray: coordinates of the index.
+        """
         #vectorized
         index = np.asarray(index)
         dim = self.ndim
@@ -991,6 +1191,9 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
 
     @property
     def position_array(self):
+        """Array of the waves.
+        Corresponding to the x-axis values if one-dimentional array.
+        """
         shape = self.shape
         ndim = len(shape)
         if ndim == 0:
@@ -1007,6 +1210,17 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     parray = position_array
 
     def index(self, *position, return_type=round):
+        """Calculate position from the index.
+        Args:
+            x (float): coordinates of x-axis.
+            y (float): coordinates of y-axis. Use this if the dimension of the array >= 2.
+            z (float): coordinates of z-axis. Use this if the dimension of the array >= 3.
+            t (float): coordinates of t-axis. Use this if the dimension of thie array == 4.
+            return_type (function): A function used to make the index int.
+                The default value is int.
+        Returns:
+            int or tuple: index
+        """
         def one_d(dimension, value):
             init, grad = self.get_scaling(dimension)
             return (value-init) / grad
@@ -1019,6 +1233,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
 
     @property
     def dtype(self):
+        """dtype of this array."""
         return np.dtype(utils.to_npdtype(self.reference.GetDimensions()[0]))
 
     @property
@@ -1030,12 +1245,21 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
             return np.array(self._array(), dtype=dtype)
 
     def toarray(self):
+        """Convert wave to numpy.ndarray."""
         return self.array
 
     def _array(self):
         return self.reference.GetNumericWaveData(utils.to_igor_data_type(self.dtype))
 
     def append(self, obj, keepscalings=True, keepunits=True):
+        """Append value(s) to the wave.
+        Args:
+            obj (scalar value or array_like of the scalar value): The value(s) to add.
+            keepscalings (bool): keep scaling information of the wave after adding
+                the value(s). The default values is True.
+            keepsunits (bool): keep units information of the wave after adding
+                the value(s). The default values is True.
+        """
         length = self._length
         if (length is not None) and length > APPEND_SWITCH:
             self._append2(obj)
@@ -1062,6 +1286,12 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
             self.reference.SetNumericWavePointValue(length + i, val) 
 
     def to_Series(self, index="position"):
+        """"Convert igor wave to pandas.Series if the wave is one dimentional.
+        Args:
+            index (str): Specify the index of the Series. The default value is "position".
+                The index of the Series become x-axis value if "position", or become integer
+                index if "points".
+        """
         import pandas as pd
         index = index.lower()
         if index == "position":
@@ -1074,17 +1304,20 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
 
     @property
     def ndim(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         # 75.8 us
         return len(self.shape)
 
     @property
     def shape(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         result = tuple(i for i in self.reference.GetDimensions()[1:] if i != 0)
         self._length = 0 if not result else result[0]
         return result
 
     @property
     def size(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         return utils.prod(self.shape)
 
     def __len__(self):
@@ -1117,10 +1350,56 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
             nptype, _, variant_array = comutils.nptype_vttype_and_variant_array(wv)
             self.reference.SetNumericWaveData(utils.to_igor_data_type(nptype), variant_array)
 
+    def __iadd__(self, other):
+        self.parent.waves[self.name] = self + other
+        return self
+
+    def __isub__(self, other):
+        self.parent.waves[self.name] = self - other
+        return self
+
+    def __imul__(self, other):
+        self.parent.waves[self.name] = self * other
+        return self
+
+    def __imatmul__(self, other):
+        self.parent.waves[self.name] = self.__matmul__(other)
+        return self
+
+    def __itruediv__(self, other):
+        self.parent.waves[self.name] = self / other
+        return self
+
+    def __ifloordiv__(self, other):
+        self.parent.waves[self.name] = self // other
+        return self
+
+    def __imod__(self, other):
+        self.parent.waves[self.name] = self % other
+        return self
+
+    def __ipow__(self, other):
+        self.parent.waves[self.name] = self ** other
+        return self
+
     def is_(self, other):
+        """Check this instance ferer the same wave object.
+        See also is_equiv document.
+        Args:
+            other (object): other object to compare.
+        """
         return self.path == other.path
 
     def is_equiv(self, other):
+        """Check the wave is equivalent.
+            This returns True if "The all values in data is the same value" and
+            "The scalings are the same" and "The units are the same".
+        Args:
+            other (object): other object to compare.
+        Note:
+            Use np.all(wave1 == wave2) to compare the data value only.
+            Use is_ method to check if self and ther refers the same pointer of the igor object.
+        """
         if not hasattr(other, "_igorconsole_to_igorwave"):
             return False
         selfinfo = self._igorconsole_to_igorwave()
@@ -1136,42 +1415,49 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
 
     #inplace
     def fill(self, value):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].fill(value)
         self.parent.waves[self.name] = info
 
     #inplace
     def itemset(self, *args):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].itemset(*args)
         self.parent.waves[self.name] = info
 
     #inplace
     def partition(self, *args, **kwargs):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].partition(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def put(self, *args, **kwargs):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].put(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def resize(self, *args, **kwargs):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].resize(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def setfield(self, *args, **kwargs):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].setfield(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def sort(self, *args, **kwargs):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].sort(*args, **kwargs)
         self.parent.waves[self.name] = info
@@ -1179,6 +1465,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     #inplace
     @NdArrayMethodMixin.imag.setter
     def imag(self, obj):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].imag = obj
         self.parent.waves[self.name] = info
@@ -1186,6 +1473,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     #inplace
     @NdArrayMethodMixin.real.setter
     def real(self, obj):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].real = obj
         self.parent.waves[self.name] = info
@@ -1193,6 +1481,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     #inplace
     @NdArrayMethodMixin.shape.setter
     def shape(self, obj):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].shape = obj
         self.parent.waves[self.name] = info
@@ -1200,11 +1489,10 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     #inplace
     @NdArrayMethodMixin.strides.setter
     def stridesl(self, obj):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         info["array"].strides = obj
         self.parent.waves[self.name] = info
-
-    toarray = array
 
     def _igorconsole_to_igorwave(self):
         info = {
@@ -1234,6 +1522,12 @@ class OLEIgorObjectCollection(IgorObjectCollectionBase):
         return (self[i] for i in range(len(self)-1, -1, -1))
 
     def get(self, key):
+        """get values if the specified variable exists, else return None
+        Args (str or int): This behaves like dict when key is name of the wave.
+            This behaves like list when key is int.
+        Returns:
+            str, int or None: values of the variable.
+        """
         if utils.isint(key) and 0 <= key < len(self):
             return self[int(key)]
         if isinstance(key, str) and key in self:
@@ -1261,9 +1555,7 @@ class OLEIgorObjectCollection(IgorObjectCollectionBase):
 
 class OLEIgorFolderCollection(OLEIgorObjectCollection):
     def __getitem__(self, key):
-        """
-        get folders by numeric index or by the folder name.
-        """
+        """get folders by numeric index or by the folder name."""
         key = key if isinstance(key, str) else int(key)
         return OLEIgorFolder(self.reference(key), self.app, input_check=False)
 
@@ -1274,11 +1566,18 @@ class OLEIgorFolderCollection(OLEIgorObjectCollection):
         raise NotImplementedError()
 
     def add(self, name, overwrite=False):
+        """Add subfolders.
+        Args:
+            name (str): name of the folder.
+        Returns:
+            OLEIgorFolder: made folder.
+        """
         with TempFolder(self.app):
             return OLEIgorFolder(self.reference.Add(name, overwrite), self.app, input_check=False)
     
     @staticmethod
     def addable(obj):
+        """Check the object can be add to this folder."""
         if hasattr(obj, "_igorconsole_to_igorfolder"):
             return True
         if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
@@ -1293,14 +1592,7 @@ class OLEIgorFolderCollection(OLEIgorObjectCollection):
         if not type(self).addable(val):
             raise TypeError("cannot convert to igor folder structure.")
         if str(val.__class__) == "<class 'pandas.core.frame.DataFrame'>":
-            import pandas as pd
-            if isinstance(val, pd.DataFrame):
-                self.add(key, overwrite=True)
-                f = self[key]
-                for column in val.columns:
-                    f[str(column)] = val[column]
-            return
-        
+            val = utils.from_pd_DataFrame(val)
         if hasattr(val, "_igorconsole_to_igorfolder"):
             val = val._igorconsole_to_igorfolder()
         if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorFolder"):
@@ -1394,6 +1686,7 @@ class OLEIgorWaveCollection(OLEIgorObjectCollection):
 
     @staticmethod
     def addable(obj):
+        """Check if the object can be add to this folder."""
         #if wave or convartable
         if hasattr(obj, "_igorconsole_to_igorwave"):
             return True
@@ -1473,6 +1766,7 @@ class OLEIgorVariableCollection(OLEIgorObjectCollection):
     
     @staticmethod
     def addable(obj):
+        """Check if the object can be add to this folder."""
         if hasattr(obj, "_igorconsole_to_igorvariable"):
             return True
         if isinstance(obj, dict) and ("type" in obj) and (obj["type"] == "IgorVariable"):
@@ -1501,12 +1795,15 @@ class Window:
         return "<igorconsole.Window({0}, IgorApp)>".format(self.name)
 
     def to_front(self):
+        """Bring the window to front."""
         self.app.execute('DoWindow/F ' + self.name)
 
     def to_back(self):
+        """Send the window to front."""
         self.app.execute('DoWindow/B ' + self.name)
 
     def kill(self):
+        """Delete the window."""
         self.app.execute('DoWindow/K ' + self.name)
         del self.name
         del self.app
@@ -1547,16 +1844,20 @@ class Graph(Window):
         raise KeyError("Trace {} is not in this graph.".format(key))
 
     def keys(self):
+        """Developping."""
         return self.traces(True, True, True)
 
     def values(self):
+        """Developping."""
         return list(self.trace_waves(True, True, True))
 
     def items(self):
+        """Developping."""
         return [(key, self.trace_wave(key, True, True, True))
                 for key in self.keys()]
 
     def get(self, key, default=None):
+        """Developping."""
         try:
             return self[key]
         except KeyError:
@@ -1566,6 +1867,7 @@ class Graph(Window):
         raise NotImplementedError()
 
     def traces(self, normal=True, contour=True, hidden=False):
+        """Developping."""
         flags = 0
         if normal:
             flags += 0b1
@@ -1583,11 +1885,13 @@ class Graph(Window):
         return self.app.execute(command)[1][0]
 
     def trace_wave(self, trace, normal=True, contour=True, hidden=False):
+        """Developping."""
         if utils.isint(trace):
             trace = self.traces(normal, contour, hidden)[int(trace)]
         return OLEIgorWave(self._to_fullpath(trace), self.app)
 
     def trace_waves(self, normal=True, contour=True, hidden=False):
+        """Developping."""
         names = self.traces(normal, contour, hidden)
         return (OLEIgorWave(self._to_fullpath(name), self.app) for name in names)
 
@@ -1597,16 +1901,18 @@ class Graph(Window):
     #    wave_names = (wv if isinstance(wv, str) else wv.path for wv in waves)
 
     def append(self, ywave, xwave=None, position="lb"):
+        """Developping."""
         position = "/" + "/".join(position)
 
-        ywave = ywave.quoted_path if isinstance(ywave, Wave) else str(ywave)
+        ywave = ywave.quoted_path if isinstance(ywave, OLEIgorWave) else str(ywave)
         command = "appendtograph/w={0}{1} {2}".format(self.name, position, ywave)
         if xwave is not None:
-            xwave = xwave.path if isinstance(xwave, Wave) else str(xwave)
+            xwave = xwave.quoted_path if isinstance(xwave, OLEIgorWave) else str(xwave)
             command += " vs {0}".format(xwave)
         self.app.execute(command)
 
     def modify_by_commands(self, commands):
+        """Developping."""
         commands = [commands] if isinstance(commands, str) else commands
         com = []
         apd = com.append
@@ -1619,6 +1925,7 @@ class Graph(Window):
             self.app.execute(oneline)
 
     def modify(self, command_dict=None, **kwargs):
+        """Developping."""
         command_dict = {} if command_dict is None else command_dict
         command_dict.update(kwargs)
         commands = []
@@ -1629,6 +1936,7 @@ class Graph(Window):
         self.modify_by_commands(commands)
 
     def modify_w(self, command_dict=None, **kwargs):
+        """Developping."""
         command_dict = {} if command_dict is None else command_dict
         command_dict.update(kwargs)
         for key, val in command_dict.items():
@@ -1638,6 +1946,7 @@ class Graph(Window):
                 warnings.warn("Not executed: {0}={1[key]}".format(key, kwargs), UserWarning)
 
     def modify_s(self, command_dict=None, **kwargs):
+        """Developping."""
         command_dict = {} if command_dict is None else command_dict
         command_dict.update(kwargs)
         for key, val in command_dict.items():
@@ -1647,6 +1956,7 @@ class Graph(Window):
                 pass
 
     def style(self, style:str):
+        """Developping."""
         if os.path.exists("{0}/igorconsole/styles/{1}.json".format(HOME_DIR, style)):
             fpath = "{0}/igorconsole/styles/{1}.json".format(HOME_DIR, style)
         elif os.path.exists("{0}/../styles/{1}.json".format(PATH,style)):
@@ -1658,6 +1968,7 @@ class Graph(Window):
         self.modify_s(style)
 
     def map_color(self, style:str, traces=None, *args, **kwargs):
+        """Developping."""
         traces = self.traces() if traces is None else traces
         length = len(traces)
         from igorconsole import colorfuncs
@@ -1669,6 +1980,7 @@ class Graph(Window):
         self.modify(trace_colors)
 
     def setaxis(self, axis_name, num1=None, num2=None, silent_error=False):
+        """Developping."""
         if num1 is None:
             num1 = "*"
         if num2 is None:
@@ -1712,6 +2024,7 @@ class Graph(Window):
         self.app.execute("".join(command))
 
     def setlabel(self, axis_name, string, silent_error=False):
+        """Developping."""
         command = []
         command.append("label")
         command.append("/w={0}".format(self.name))
@@ -1725,6 +2038,7 @@ class Graph(Window):
                    color="cmyk", size=None, sizeunit="cm",
                    embed_fonts=False, overwrite=False,
                    resolution="4x", preview=False, transparent=False):
+        """Developping."""
         command = []
         apd = command.append
         apd("savepict")
@@ -1816,6 +2130,7 @@ class Graph(Window):
                          color="cmyk", size=None, sizeunit="cm",
                          embed_fonts=False, overwrite=False,
                          resolution="4x", preview=False, transparent=False):
+        """Developping."""
         with tempfile.TemporaryDirectory() as tmpd:
             path = tmpd + "\\tmpfile"
             self.save_image(path, filetype=filetype,
@@ -1832,6 +2147,7 @@ class Graph(Window):
                   color="rgb", size=None, sizeunit="cm",
                   embed_fonts=False, overwrite=False,
                   resolution="4x", preview=False, transparent=False):
+        """Developping."""
         from PIL import Image
         with tempfile.TemporaryDirectory() as tmpd:
             path = tmpd + "\\tmpfile"
@@ -1848,7 +2164,7 @@ class Graph(Window):
                    color="rgb", size=None, sizeunit="cm",
                    embed_fonts=False, overwrite=False,
                    resolution="4x", preview=False, transparent=False):
-
+        """Developping."""
         img = self.get_image(filetype=filetype,
                              color=color, size=size, sizeunit=sizeunit,
                              embed_fonts=embed_fonts, overwrite=overwrite,
@@ -1863,11 +2179,11 @@ class Graph(Window):
         pyplot.show()
 
     def reorder(self, order, normal=True, contour=True, hidden=False):
+        """Reorder waves.
+        Args:
+             order: [0,3,2,1] or ["tr0", "tr3", "tr2", "tr1"]
         """
-            Args:
-                order: [0,3,2,1] or ["tr0", "tr3", "tr2", "tr1"]
-        """
-        order_array = np.asrray(order)
+        order_array = np.asarray(order)
         if issubclass(order_array.dtype.type, np.integer):
             traces = self.traces(normal, contour, hidden)
             order = [traces[i] for i in order]

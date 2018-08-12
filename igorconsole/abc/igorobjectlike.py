@@ -107,6 +107,12 @@ class OperatableLikeIgorObject(ABC):
 
     def __rmod__(self, other):
         return self._binary_roperation(other, op.mod)
+    
+    def __pow__(self, other):
+        return self._binary_operation(other, op.pow)
+
+    def __rpow__(self, other):
+        return self._binary_roperation(other, op.pow)
 
 class OperatableLikeIgorWave(OperatableLikeIgorObject, ConvertableToIgorWaveMixin):
     def _unary_operation(self, operator):
@@ -165,6 +171,10 @@ class OperatableLikeIgorWave(OperatableLikeIgorObject, ConvertableToIgorWaveMixi
 
     def __rmatmul__(self, other):
         return self._binary_roperation(other, op.matmul)
+
+    def __array__(self, dtype=None):
+        array = self._igorconsole_to_igorwave()["array"]
+        return np.asarray(array, dtype=dtype)
 
 
 class OperatableLikeIgorVariable(OperatableLikeIgorObject, ConvertableToIgorVariableMixin):
@@ -228,6 +238,7 @@ class NdArrayMethodMixin:
     #ndarray attributed
     @property
     def T(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -252,12 +263,14 @@ class NdArrayMethodMixin:
 
     @property
     def dtype(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.dtype
 
     @property
     def flat(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -270,6 +283,7 @@ class NdArrayMethodMixin:
 
     @property
     def imag(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -283,6 +297,7 @@ class NdArrayMethodMixin:
 
     @property
     def real(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -296,18 +311,21 @@ class NdArrayMethodMixin:
     
     @property
     def size(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.size
 
     @property
     def itemsize(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.itemsize
 
     @property
     def nbytes(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.nbytes
@@ -320,6 +338,7 @@ class NdArrayMethodMixin:
 
     @property
     def shape(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.shape
@@ -331,6 +350,7 @@ class NdArrayMethodMixin:
 
     @property
     def strides(self):
+        """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.strides
@@ -342,36 +362,43 @@ class NdArrayMethodMixin:
 
     #ndarray methods
     def all(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.all(*args, **kwargs)
 
     def any(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.any(*args, **kwargs)
 
     def argmax(self, axis=None):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.argmax(axis=axis)
 
     def argmin(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.argmin(*args, **kwargs)
 
     def argpartition(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.argpartition(*args, **kwargs)
 
     def argsort(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.argsort(*args, **kwargs)
 
     def astype(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -379,6 +406,7 @@ class NdArrayMethodMixin:
         return self._return_type(array.astype(*args, **kwargs), scalings, units)
 
     def byteswap(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -389,6 +417,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def choose(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -399,6 +428,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def clip(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -407,6 +437,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def compress(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -417,6 +448,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def conjugate(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -427,6 +459,7 @@ class NdArrayMethodMixin:
     conj = conjugate
 
     def copy(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -435,6 +468,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def cumprod(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -443,6 +477,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def cumsum(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -451,16 +486,19 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def diagonal(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.diagonal(*args, **kwargs)
 
     def dot(self, b):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.dot(b)
 
     def flatten(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -471,26 +509,31 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def item(self, *args):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.item(*args)
 
     def max(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.max(*args, **kwargs)
 
     def mean(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.mean(*args, **kwargs)
 
     def min(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.min(*args, **kwargs)
 
     def newbyteorder(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -501,21 +544,25 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def nonzero(self):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.nonzero()
 
     def prod(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.prod(*args, **kwargs)
 
     def ptp(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.ptp(*args, **kwargs)
 
     def ravel(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -526,6 +573,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def repeat(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -536,6 +584,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def reshape(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -544,6 +593,7 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def round(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -552,11 +602,13 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def searchsorted(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.searchsorted(*args, **kwargs)
 
     def squeeze(self, axis=None):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -574,16 +626,19 @@ class NdArrayMethodMixin:
         return self._return_type(array, scalings, units)
 
     def std(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.std(*args, **kwargs)
 
     def sum(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         return array.sum(*args, **kwargs)
 
     def swapaxes(self, axis1, axis2):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         info = self._igorconsole_to_igorwave()
         array = info["array"]
         scalings = info["scalings"]
@@ -604,21 +659,27 @@ class NdArrayMethodMixin:
         return self._return_type(array, return_scalings, return_units)
 
     def take(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         return self.array.take(*args, **kwargs)
 
     def tolist(self):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         return self.array.tolist()
 
     def tostring(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         return self.array.tostring(*args, **kwargs)
 
     def trace(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         return self.array.trace(*args, **kwargs)
 
     def transpose(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         return self.T
 
     def var(self, *args, **kwargs):
+        """Emulate method of numpy.ndarray. See the corresponding document of numpy."""
         return self.array.var(*args, **kwargs)
 
 class ArrayOperatableLikeWave(OperatableLikeIgorWave,

@@ -1,9 +1,10 @@
 import igorconsole
 import numpy as np
+import time
 
 def display_test():
-    igor = igorconsole.start(visible=False)
-
+    igor = igorconsole.start()
+    igor.show()
     igor.root.ywave1 = np.arange(10)
     #igor.root.ywave2 = -2.3*igor.root.ywave1 バグ
     igor.root.ywave2 = -2.3*igor.root.ywave1.array

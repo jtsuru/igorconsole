@@ -25,59 +25,59 @@ def test_scalar():
     for s in tqdm(scalars):
         for a, w in tqdm(zip(arrays, waves)):
             assert np.all(a + s == w + s)
-            assert type(w + s) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+            assert type(w + s) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
             assert np.all(s + a == s + w)
-            assert type(s + w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+            assert type(s + w) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
             assert np.all(a - s == w - s)
-            assert type(w - s) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+            assert type(w - s) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
             assert np.all(s - a == s - w)
-            assert type(s - w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+            assert type(s - w) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
             assert np.all(a * s == w * s)
-            assert type(w * s) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+            assert type(w * s) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
             assert np.all(s * a == s * w)
-            assert type(s * w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+            assert type(s * w) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
             assert np.all(a / s == w / s)
-            assert type(w / s) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+            assert type(w / s) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
             assert np.all(s / a == s / w)
-            assert type(s / w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
-            if isinstance(s, complex) or isinstance(s, igorconsole.oleconsole.Variable) and isinstance(s.value, complex):
+            assert type(s / w) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
+            if isinstance(s, complex) or isinstance(s, igorconsole.Variable) and isinstance(s.value, complex):
                 pass
             else:
                 assert np.all(a // s == w // s)
-                assert type(w // s) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+                assert type(w // s) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
                 assert np.all(s // a == s // w)
-                assert type(s // w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+                assert type(s // w) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
                 assert np.all(a % s == w % s)
-                assert type(w % s) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+                assert type(w % s) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
                 assert np.all(s % a == s % w)
-                assert type(s % w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+                assert type(s % w) ==igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
 
 def test_array():
     for a, w in zip(arrays, waves):
         assert np.all(a == w)
         assert np.all(a + a == w + a)
-        assert type(w + a) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+        assert type(w + a) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
         assert np.all(a + a == a + w)
         #assert type(a + w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
         assert np.all(a - a == w - a)
-        assert type(w - a) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+        assert type(w - a) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
         assert np.all(a - a == a - w)
         #assert type(a - w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
         assert np.all(a * a == w * a)
-        assert type(w * a) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+        assert type(w * a) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
         assert np.all(a * a == a * w)
         #assert type(a * w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
         assert np.all(a / a == w / a)
-        assert type(w / a) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+        assert type(w / a) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
         assert np.all(a / a == a / w)
         #assert type(a / w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
 
         assert np.all(a // a == w // a)
-        assert type(w // a) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+        assert type(w // a) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
         assert np.all(a // a == a // w)
         #assert type(a // w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
         assert np.all(a % a == w % a)
-        assert type(w % a) == igorconsole.igorconvertable.ArrayOperatableLikeWave
+        assert type(w % a) == igorconsole.abc.igorobjectlike.ArrayOperatableLikeWave
         assert np.all(a % a == a % w)
         #assert type(a % w) == igorconsole.igorconvertable.ArrayOperatableLikeWave
 

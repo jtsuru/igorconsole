@@ -150,7 +150,7 @@ class Spectrum:
         }
         contents["yarray"] = {
             "type": "IgorWave",
-            "array": np.asarray(self.Ramanshift),
+            "array": self.yarray,
             "units": ["counts s\S-1\M", "", "", "", ""]
         }
         info = {
