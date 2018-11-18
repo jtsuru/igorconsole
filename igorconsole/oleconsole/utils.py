@@ -209,11 +209,6 @@ def from_pd_DataFrame(df):
     else:
         contents = {"index": np.asarray(df.index)}
     for key, series in df.items():
-        #if series.dtype.type is np.object_:
-        #    try:
-        #        series = np.array(series, dtype=np.float64)
-        #    except ValueError:
-        #        pass
         contents[str(key)] = series
     info["contents"] = contents
     return info

@@ -435,10 +435,11 @@ class IgorApp:
         if self.version < 7.0:
             self.reference.Quit()
         else:
-            #todo: ?
+            #On igor 7, Quit finished immediately before the application finishes completely,
+            #which causes the exception when you run igor again quicly.
             wmi = win32com.client.GetObject("winmgmts:")
-            number_of_igor_instance = lambda: len([item for item in wmi.InstancesOf("Win32_Process")
-                if item.Properties_("Name").Value == "Igor.exe"])
+            def number_of_igor_instance():
+                return len([item for item in wmi.InstancesOf("Win32_Process") if item.Properties_("Name").Value == "Igor.exe"])
             initial_instance_num = number_of_igor_instance()
             self.reference.Quit()
             while number_of_igor_instance() >= initial_instance_num > 0:
@@ -459,6 +460,7 @@ class IgorApp:
     def cwd(self):
         """Current working directory set in Igor pro."""
         cwd_path = self.execute("fprintf 0, getdatafolder(1)")[1][0]
+        cwd_path = cwd_path.replace("'", "")
         return OLEIgorFolder(cwd_path, self)
 
     def window_names(self, wintype):
@@ -2163,7 +2165,8 @@ class Graph(Window):
     def show_image(self, filetype="png",
                    color="rgb", size=None, sizeunit="cm",
                    embed_fonts=False, overwrite=False,
-                   resolution="4x", preview=False, transparent=False):
+                   resolution="4x", preview=False, transparent=False,
+                   ax=None):
         """Developping."""
         img = self.get_image(filetype=filetype,
                              color=color, size=size, sizeunit=sizeunit,
@@ -2171,12 +2174,11 @@ class Graph(Window):
                              resolution=resolution, preview=preview,
                              transparent=transparent)
         from matplotlib import pyplot
-        pyplot.imshow(img)
-        pyplot.gca().spines["left"].set_visible(False)
-        pyplot.gca().spines["bottom"].set_visible(False)
-        pyplot.gca().spines["right"].set_visible(False)
-        pyplot.gca().spines["top"].set_visible(False)
-        pyplot.show()
+        if ax is None:
+            ax = pyplot.gca()
+        ax.imshow(img)
+        ax.set_axis_off()
+        return ax
 
     def reorder(self, order, normal=True, contour=True, hidden=False):
         """Reorder waves.

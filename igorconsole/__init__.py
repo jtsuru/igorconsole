@@ -1,7 +1,7 @@
 
 import platform
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 if platform.system() == "Windows":
     from .oleconsole import oleconsts
