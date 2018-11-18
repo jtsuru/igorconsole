@@ -1548,7 +1548,7 @@ class OLEIgorObjectCollection(IgorObjectCollectionBase):
         return {item.Name for item in self.reference}
 
     def items(self):
-        return {(key, self[key]) for key in self.keys()}
+        return [(key, self[key]) for key in self.keys()]
 
 
     def values(self):
@@ -2199,7 +2199,7 @@ class Graph(Window):
         for item in reversed(order):
             anchor, trace = trace, item
             command = "ReorderTraces/W={0} {1},{{{2}}}".format(self.name, anchor, trace)
-            igor.execute(command)
+            self.app.execute(command)
 
 class Table(Window):
     def _raw_info_str(self, num):
