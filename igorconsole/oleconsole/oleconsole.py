@@ -2033,8 +2033,8 @@ class Graph(Window):
         if silent_error:
             command.append("/z")
         command.append(axis_name)
-        command.append(string)
-        self.app.execute("".join(command))
+        command.append('"' + string + '"')
+        self.app.execute(" ".join(command))
 
     def save_image(self, filename, filetype="pdf",
                    color="cmyk", size=None, sizeunit="cm",
