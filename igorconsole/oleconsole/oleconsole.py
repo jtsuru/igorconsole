@@ -154,14 +154,56 @@ class IgorApp:
 
         return ([i.strip() for i in history][:-1], [i.strip() for i in result])
 
-    def execute_commands(self, commands, logged=False):
+    def execute_commands(self, commands, logged=False, error_policy="raise"):
         """Execute many igor commands.
         Args:
             command (iterable): list of commands.
             logged (bool): if enabled, the command is logged in the igor history.
+            error_policy (str): "raise", "warn", or "ignore"
         """
         for merged_command in utils.merge_commands(commands):
-            self.execute(merged_command, logged=logged)
+            try:
+                self.execute(merged_command, logged=logged)
+            except RuntimeError:
+                pass
+            else:
+                continue
+            # Come here only when execution of marged_command was failed.
+            # Run each commands when fail to execute marged command.
+            error_policy = error_policy.lower()
+            # remove the last empty element.
+            splitted_command = merged_command.split(";")[:-1]
+            for each_command in splitted_command:
+                try:
+                    self.execute(each_command, logged=logged)
+                except RuntimeError as e:
+                    if error_policy == "raise":
+                        raise
+                    elif error_policy == "warn":
+                        warnings.warn(
+                            str(e)
+                        )
+                    elif error_policy == "ignore":
+                        pass
+                    else:
+                        raise ValueError("Invalid error_policy.")
+
+    def _fprintf(self, command):
+        """do fprintf
+        When the result of fprintf 0, ??? is too long, it fails.
+        In this case we have to use 'normal' print function. 
+        """
+        try:
+            _, result = self.execute(
+                'fprintf 0, {}'.format(command)
+            )
+            return result[0]
+        except RuntimeError:
+            (_, *history), _ = self.execute(
+                'print {}'.format(command),
+                logged=True
+            )
+            return "".join(history)
 
     def async_execute(self, command):
         self.execute('Execute/P/Z/Q "{}"'.format(command))
@@ -433,7 +475,7 @@ class IgorApp:
         if self.version < 7.0:
             self.reference.Quit()
         else:
-            #On igor 7, Quit finished immediately before the application finishes completely,
+            #On igor 7, Quit returns immediately before the application finishes completely,
             #which causes the exception when you run igor again quicly.
             wmi = win32com.client.GetObject("winmgmts:")
             def number_of_igor_instance():
@@ -470,8 +512,9 @@ class IgorApp:
                 Layout: 4
                 Panel: 64
         """
-        return self.execute(r'fprintf 0, winlist("*", ";", "win:'
-                            + str(wintype) + r'")')[1][0].split(";")[:-1]
+        return self._fprintf(
+            'winlist("*", ";", "win:{}")'.format(wintype)
+        ).split(";")[:-1]
 
     @property
     def graphs(self):
@@ -1876,8 +1919,10 @@ class Graph(Window):
             flags += 0b10
         if not hidden:
             flags += 0b100
-        listname = self.app.execute('fprintf 0, tracenamelist("{0}", ";", {1})'\
-                   .format(self.name, flags))[1][0].split(";")[:-1]
+        
+        listname = self.app._fprintf(
+            'TraceNameList("{0}", ";", {1})'.format(self.name, flags)
+        ).split(";")[:-1]
         return listname
 
     def _to_fullpath(self, trace_name):
@@ -1886,13 +1931,16 @@ class Graph(Window):
         return self.app.execute(command)[1][0]
 
     def trace_wave(self, trace, normal=True, contour=True, hidden=False):
-        """Developping."""
+        """Return a Wave object corresponding to the trace name.
+        Args:
+            trace (str, int): trace name or order of the trace.
+        """
         if utils.isint(trace):
             trace = self.traces(normal, contour, hidden)[int(trace)]
         return OLEIgorWave(self._to_fullpath(trace), self.app)
 
     def trace_waves(self, normal=True, contour=True, hidden=False):
-        """Developping."""
+        """Return Wave objects shown in this graph."""
         names = self.traces(normal, contour, hidden)
         return (OLEIgorWave(self._to_fullpath(name), self.app) for name in names)
 
@@ -1912,20 +1960,16 @@ class Graph(Window):
             command += " vs {0}".format(xwave)
         self.app.execute(command)
 
-    def modify_by_commands(self, commands):
+    def modify_by_commands(self, commands, error_policy="raise"):
         """Developping."""
         commands = [commands] if isinstance(commands, str) else commands
         com = []
         apd = com.append
         for command in commands:
             apd("ModifyGraph/W={0} {1};".format(self.name, command))
-        while com:
-            oneline = ""
-            while com and len(oneline) < 300:
-                oneline += com.pop()
-            self.app.execute(oneline)
+        self.app.execute_commands(com, error_policy=error_policy)
 
-    def modify(self, command_dict=None, **kwargs):
+    def modify(self, command_dict=None, error_policy="raise", **kwargs):
         """Developping."""
         command_dict = {} if command_dict is None else command_dict
         command_dict.update(kwargs)
@@ -1934,12 +1978,15 @@ class Graph(Window):
             val = int(val) if utils.isbool(val) else val
             val = '"{0}"'.format(val) if isinstance(val, str) else val
             commands.append("{0}={1}".format(key, val))
-        self.modify_by_commands(commands)
+        self.modify_by_commands(commands, error_policy=error_policy)
 
     def modify_w(self, command_dict=None, **kwargs):
         """Developping."""
         command_dict = {} if command_dict is None else command_dict
         command_dict.update(kwargs)
+        #Do not use modify with error_policy="warn".
+        #It marges commands in current version (0.4.6)
+        #
         for key, val in command_dict.items():
             try:
                 self.modify({key: val})
@@ -1966,7 +2013,7 @@ class Graph(Window):
             raise ValueError("Cannot find the style file.")
         with open(fpath, "rt") as f:
             style = json.load(f)
-        self.modify_s(style)
+        self.modify(style, error_policy="ignore")
 
     def map_color(self, style:str, traces=None, *args, **kwargs):
         """Developping."""
