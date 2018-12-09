@@ -4,13 +4,11 @@
 Todo:
     * Make documents
 """
-import configparser
 import itertools
 import json
 import logging
 import operator as op
 import os
-import pkgutil
 import re
 import sys
 import tempfile
@@ -29,17 +27,8 @@ from igorconsole.oleconsole import comutils, utils
 import igorconsole.oleconsole.oleconsts as csts
 from igorconsole.abc.igorobjects import IgorObjectBase, IgorFolderBase, IgorVariableBase, IgorWaveBase, IgorObjectCollectionBase
 from igorconsole.abc.igorobjectlike import NdArrayMethodMixin
+from .consts import CODEPAGE, PATH, HOME_DIR, APPEND_SWITCH, COMMAND_MAXLEN
 logger = logging.getLogger(__name__)
-
-
-CODEPAGE = 0
-config = configparser.ConfigParser()
-PATH, _ = os.path.split(__file__)
-config.read(PATH + "/config.ini")
-APPEND_SWITCH = int(config["Wave"]["append_switch_length1"])
-COMMAND_MAXLEN = int(config["Command"]["max_length"])
-del config, _
-HOME_DIR = os.path.expanduser("~")
 
 def object_type(obj):
     if not isinstance(obj, win32com.client.CDispatch):
@@ -164,6 +153,15 @@ class IgorApp:
         result = result.split("\r")
 
         return ([i.strip() for i in history][:-1], [i.strip() for i in result])
+
+    def execute_commands(self, commands, logged=False):
+        """Execute many igor commands.
+        Args:
+            command (iterable): list of commands.
+            logged (bool): if enabled, the command is logged in the igor history.
+        """
+        for merged_command in utils.merge_commands(commands):
+            self.execute(merged_command, logged=logged)
 
     def async_execute(self, command):
         self.execute('Execute/P/Z/Q "{}"'.format(command))
@@ -498,6 +496,7 @@ class IgorApp:
     def win_exists(self, name):
         return bool(self.get_value('WinType("{0}")'.format(name)))
 
+    #bug: ywavesが多すぎるときに失敗。
     def display(self, ywaves, xwave=None, *,
                 winname=None, title=None, yaxis=None, xaxis=None,
                 frame=None, hide=False, host=None, win_location=None,
@@ -1944,7 +1943,7 @@ class Graph(Window):
         for key, val in command_dict.items():
             try:
                 self.modify({key: val})
-            except RuntimeError as e:
+            except RuntimeError:
                 warnings.warn("Not executed: {0}={1[key]}".format(key, kwargs), UserWarning)
 
     def modify_s(self, command_dict=None, **kwargs):
@@ -1989,7 +1988,7 @@ class Graph(Window):
             num2 = "*"
 
         command = []
-        command.append("setaxis")
+        command.append("SetAxis")
         command.append("/w={0} ".format(self.name))
         if silent_error:
             command.append("/z ")

@@ -8,6 +8,7 @@ from collections import UserString
 import numpy as np
 
 from igorconsole.exception import IgorTypeError
+from .consts import COMMAND_MAXLEN
 
 logger = logging.getLogger(__name__)
 
@@ -225,3 +226,22 @@ def to_pd_DataFrame(finfo):
         return result
     else:
         return pd.DataFrame.from_dict(waves)
+
+def merge_commands(commands):
+    result = ""
+    buff = ""
+    for command in commands:
+        if not command.endswith(";"):
+            command += ";"
+        buff += command
+        if len(buff) > COMMAND_MAXLEN:
+            if result:
+                #exeeds max length
+                yield result
+                buff = command
+            else:
+                #one comand itself exeeds max len
+                yield buff
+                buff = ""
+        result = buff
+    yield result
