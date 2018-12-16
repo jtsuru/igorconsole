@@ -17,6 +17,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import abc as c_abc
 from collections import deque
+from contextlib import suppress
 
 import numpy as np
 import pythoncom
@@ -78,8 +79,6 @@ class IgorApp:
         if 7.0 <= result.version < 7.07:
             # to prevent crashing
             time.sleep(5)
-        result.write_history('* Started from igorconsole.\n')
-
         return result
 
     @classmethod
@@ -101,8 +100,6 @@ class IgorApp:
         if 7.0 <= result.version < 7.07:
             # to prevent crashing
             time.sleep(5)
-        result.write_history('* Connected from igorconsole.\n')
-
         return result
 
     @classmethod
@@ -161,32 +158,27 @@ class IgorApp:
             logged (bool): if enabled, the command is logged in the igor history.
             error_policy (str): "raise", "warn", or "ignore"
         """
-        for merged_command in utils.merge_commands(commands):
-            try:
+        error_policy = error_policy.lower()
+        if error_policy == "raise":
+            for merged_command in utils.merge_commands(commands):
                 self.execute(merged_command, logged=logged)
-            except RuntimeError:
-                pass
-            else:
-                continue
-            # Come here only when execution of marged_command was failed.
-            # Run each commands when fail to execute marged command.
-            error_policy = error_policy.lower()
-            # remove the last empty element.
-            splitted_command = merged_command.split(";")[:-1]
-            for each_command in splitted_command:
+            return
+        if error_policy in ("warn", "ignore"):
+            #複数の文を投げた場合、エラーが起きる文の直前の文までは実行されるが、
+            #どの文でエラーが起きたかは分からない。
+            #そのため、コマンドを一つずつ実行するしかない。
+            for command in commands:
                 try:
-                    self.execute(each_command, logged=logged)
+                    self.execute(command, logged=logged)
                 except RuntimeError as e:
-                    if error_policy == "raise":
-                        raise
-                    elif error_policy == "warn":
+                    if error_policy == "warn":
                         warnings.warn(
                             str(e)
                         )
                     elif error_policy == "ignore":
                         pass
-                    else:
-                        raise ValueError("Invalid error_policy.")
+            return
+        raise ValueError("Invalid error_policy.")
 
     def _fprintf(self, command):
         """do fprintf
@@ -230,21 +222,18 @@ class IgorApp:
             3
         """
         def convert(val):
-            try:
-                return int(val[0])
-            except ValueError:
-                pass
-            try:
-                return float(val[0])
-            except ValueError:
-                return result[0]
+            with suppress(ValueError):
+                return int(val)
+            with suppress(ValueError):
+                return float(val)
+            return val
 
         returnvalue = []
         for value in values:
             try:
-                history, result = self.execute('fprintf 0, \"%.16f\" {0}'.format(value))
-            except:
-                history, result = self.execute('fprintf 0, ' + value)
+                result = self._fprintf('\"%.16f\" {0}'.format(value))
+            except RuntimeError:
+                result = self._fprintf(value)
             else:
                 returnvalue.append(convert(result))
 
@@ -471,7 +460,7 @@ class IgorApp:
         if only_when_saved and self.is_experiment_modified:
             warnings.warn("This file is not saved."
                           + "Please make 'True' only_when_saved flag.")
-            return None
+            return
         if self.version < 7.0:
             self.reference.Quit()
         else:
@@ -499,7 +488,7 @@ class IgorApp:
     @property
     def cwd(self):
         """Current working directory set in Igor pro."""
-        cwd_path = self.execute("fprintf 0, getdatafolder(1)")[1][0]
+        cwd_path = self._fprintf("getdatafolder(1)")
         cwd_path = cwd_path.replace("'", "")
         return OLEIgorFolder(cwd_path, self)
 
@@ -1926,9 +1915,10 @@ class Graph(Window):
         return listname
 
     def _to_fullpath(self, trace_name):
-        command = 'fprintf 0, GetWavesDataFolder(TraceNameToWaveRef("{0}", "{1}"), 2)'\
+        return self.app._fprintf(
+            'GetWavesDataFolder(TraceNameToWaveRef("{}", "{}"), 2)'\
                     .format(self.name, trace_name)
-        return self.app.execute(command)[1][0]
+        )
 
     def trace_wave(self, trace, normal=True, contour=True, hidden=False):
         """Return a Wave object corresponding to the trace name.
@@ -2249,8 +2239,9 @@ class Graph(Window):
 
 class Table(Window):
     def _raw_info_str(self, num):
-        command = 'fprintf 0,TableInfo("{0}",{1})'.format(self.name, num)
-        return self.app.execute(command)[1][0]
+        return self.app._fprintf(
+            'TableInfo("{0}",{1})'.format(self.name, num)
+        )
 
     def _raw_info_list(self, num):
         return self._raw_info_str(num).split(";")[:-1]
