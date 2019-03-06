@@ -1,15 +1,15 @@
 
-import platform
+import platform as _platform
 
-__version__ = "0.4.6"
+__version__ = "0.4.8"
 
-if platform.system() == "Windows":
+if _platform.system() == "Windows":
     from .oleconsole import oleconsts
     from .oleconsole.oleconsole import IgorApp, OLEIgorWave, OLEIgorVariable, OLEIgorFolder, OLEIgorWaveCollection, OLEIgorVariableCollection, OLEIgorFolderCollection
 
-    connect = IgorApp().connect
-    run = IgorApp().run
-    start = IgorApp().start
+    connect = IgorApp.connect
+    run = IgorApp.run
+    start = IgorApp.start
     
     Wave = OLEIgorWave
     Variable = OLEIgorVariable
@@ -20,4 +20,3 @@ if platform.system() == "Windows":
     FolderCollection = OLEIgorFolderCollection
 else:
     raise NotImplementedError("This package currently works only on Windows.")
-

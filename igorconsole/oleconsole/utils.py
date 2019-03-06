@@ -217,15 +217,22 @@ def from_pd_DataFrame(df):
 def to_pd_DataFrame(finfo):
     import pandas as pd
     contents = finfo["contents"]
-    waves = {i: v["array"] for i, v in contents.items() if v["type"] == "IgorWave"}
+    waves = {
+        i: pd.Series(v["array"])
+        for i, v in contents.items()
+        if v["type"] == "IgorWave"
+    }
+    #waves = {i: v["array"] for i, v in contents.items() if v["type"] == "IgorWave"}
     if "index" in waves:
         index = waves["index"]
         del waves["index"]
-        result = pd.DataFrame.from_dict(waves)
+        #result = pd.DataFrame.from_dict(waves)
+        result = pd.DataFrame(waves)
         result.index = index
         return result
     else:
-        return pd.DataFrame.from_dict(waves)
+        #return pd.DataFrame.from_dict(waves)
+        return pd.DataFrame(waves)
 
 def merge_commands(commands):
     result = ""

@@ -20,15 +20,17 @@ variant_num = {
 variant_num[float] = com.VT_R8
 variant_num[int] = com.VT_I8
 
-def list_to_variant_array(list_, vttype=com.VT_R8):
+def list_to_variant_array(list_: list, vttype: int=com.VT_R8):
+    """Convert list to COM Variant array."""
     vttype = com.VT_ARRAY | vttype
     return VARIANT(vttype, list_)
 
-def nptype_vttype_and_variant_array(array, dtype=None):
+def nptype_vttype_and_variant_array(array: np.ndarray, dtype=None):
     array = np.asarray(array, dtype=dtype)
     nptype = array_dtype(array)
     vttype = variant_num[nptype]
     return nptype, vttype, list_to_variant_array(array.tolist(), vttype)
 
-def to_variant_array(array, dtype=None):
+def to_variant_array(array: np.ndarray, dtype=None):
+    """Convert numpy.ndarray to COM Variant array."""
     return nptype_vttype_and_variant_array(array, dtype)[2]

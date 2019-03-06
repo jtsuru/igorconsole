@@ -83,7 +83,7 @@ class IgorFolderBase(IgorObjectBase):
         pass
 
     @abstractmethod
-    def _igorconsole_to_igorfolder(self):
+    def _igorconsole_to_igorfolder_(self):
         pass
 
 

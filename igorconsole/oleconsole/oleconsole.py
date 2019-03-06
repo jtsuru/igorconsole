@@ -9,10 +9,12 @@ import json
 import logging
 import operator as op
 import os
+from pathlib import Path
 import re
 import sys
 import tempfile
 import time
+import types
 import warnings
 from abc import ABC, abstractmethod
 from collections import abc as c_abc
@@ -55,67 +57,67 @@ def object_type(obj):
     raise TypeError()
 
 class IgorApp:
-    "Managing connection to igor and sending message."
+    """Managing connection to igor and sending message."""
 
-    def __init__(self):
-        self.reference = None
+    def __init__(self, reference, visible=False):
+        """Make instance of IgorApp class.
+        Do not make instance directly.
+        Call run, start, or connect method instead.
+        Args:
+            reference (COMObject): Igor com object
+            visible (bool): Optinal; True by default.
+                Show igor window or not.
+        """
+        self.reference = reference
         self._version = None
+        if 7.0 <= self.version < 7.07:
+            # to prevent crashing
+            time.sleep(5)
+        if visible:
+            self.show()
 
     @classmethod
     def run(cls, visible=False):
         """Run a new igor instance and connect.
-        Params:
-            visible (bool): set if show igor  window or not.
+        Args:
+            visible (bool): Optinal; True by default.
+                Show igor window or not.
         Returns:
             IgorApp: igor control instance.
         Exceptions:
             com_error: When the com is not added to the registory.
         """
-        result = IgorApp()
-        com = win32com.client.Dispatch("IgorPro.Application")
-        if visible:
-            com.Visible = True
-        result.reference = com
-        if 7.0 <= result.version < 7.07:
-            # to prevent crashing
-            time.sleep(5)
-        return result
+        com = win32com.client.DispatchEx("IgorPro.Application")
+        return cls(com, visible=visible)
 
     @classmethod
     def connect(cls, visible=False):
         """Connect to an existing igor instance.
-        Params:
-            visible (bool): set if show igor window or not.
+        Args:
+            visible (bool): Optinal; True by default.
+                Show igor window or not.
         Returns:
             IgorApp: igor control instance.
         Exceptions:
             com_error: When igor instance was not found,
                 or when the com is not added to the registory.
         """
-        result = IgorApp()
         com = win32com.client.GetActiveObject("IgorPro.Application")
-        if visible:
-            com.Visible = True
-        result.reference = com
-        if 7.0 <= result.version < 7.07:
-            # to prevent crashing
-            time.sleep(5)
-        return result
+        return cls(com, visible=visible)
 
     @classmethod
     def start(cls, visible=False):
         """Connecting to the igor instance if exists, else make a new instance.
-        Params:
-            visible (bool): set if show igor  window or not.
+        Args:
+            visible (bool): Optinal; True by default.
+                Show igor window or not.
         Returns:
             IgorApp: igor control instance.
         Exceptions:
             com_error: When the com is not added to the registory.
         """
-        try:
-            return cls.connect(visible=visible)
-        except com_error:
-            return cls.run(visible=visible)
+        com = win32com.client.Dispatch("IgorPro.Application")
+        return cls(com, visible=visible)
 
     def show(self):
         """Make igor window visible."""
@@ -181,8 +183,8 @@ class IgorApp:
         raise ValueError("Invalid error_policy.")
 
     def _fprintf(self, command):
-        """do fprintf
-        When the result of fprintf 0, ??? is too long, it fails.
+        """Do fprintf
+        When the result of 'fprintf 0, command' is too long, it fails.
         In this case we have to use 'normal' print function. 
         """
         try:
@@ -197,12 +199,12 @@ class IgorApp:
             )
             return "".join(history)
 
-    def async_execute(self, command):
-        self.execute('Execute/P/Z/Q "{}"'.format(command))
+    #def async_execute(self, command):
+    #    self.execute('Execute/P/Z/Q "{}"'.format(command))
 
     def get_value(self, *values, logged=False):
         """Get a value evaluated in igor.
-        Params:
+        Args:
             values (str): igor command.
             logged (bool): leave a command in the history area.
         Returns:
@@ -317,7 +319,7 @@ class IgorApp:
 
     def write_history(self, text, norm_newline_chr=True):
         """Send text to the history.
-        Params:
+        Args:
             text (str): texts to send.
         """
         if norm_newline_chr:
@@ -328,8 +330,7 @@ class IgorApp:
     write = write_history
     
     def print(self, *objects, sep=" ", end="\n"):
-        """Print strings on igor history.
-        """
+        """Print strings on igor history."""
         write = self.write_history
         firstline = True
         for item in objects:
@@ -340,10 +341,9 @@ class IgorApp:
             write(str(item))
         write(end)
 
-
     def new_experiment(self, only_when_saved=True):
-        """ Create a new experiment file.
-        Params:
+        """Create a new experiment file.
+        Args:
             only_when_saved (bool): check current experiment file is saved.
                 No alert/dialog will be appeared when disabled.
         """
@@ -358,7 +358,6 @@ class IgorApp:
         No alert/dialog will be appeared even if the current experiment file has not benn saved.
         """
         self.new_experiment(only_when_saved=False)
-
 
     def load_experiment(self, filepath, loadtype=csts.LoadType.Open):
         """Load existing experiment file.
@@ -400,7 +399,7 @@ class IgorApp:
     def save_as(self, filepath, filetype=csts.ExpFileType.Default,
                 symbolicpathname="", overwrite=False):
         """Save the current project as a new experiment file.
-        Params:
+        Args:
             filepath (str): save destination.
             filetype (int): experiment file type.
                 -1: Devault
@@ -408,14 +407,14 @@ class IgorApp:
                  1: Packed
         """
         if (not overwrite) and os.path.exists(filepath):
-            raise FileExistsError
+            raise FileExistsError()
         self._save(filepath, savetype=csts.SaveType.SaveAs,
                    filetype=filetype, symbolicpathname=symbolicpathname)
 
     def save_copy(self, filepath, filetype=csts.ExpFileType.Default,
                   symbolicpathname="", overwrite=False):
         """Save the current project as a copy.
-        Params:
+        Args:
             filepath (str): save destination.
             filetype (int): experiment file type.
                 -1: Devault
@@ -430,7 +429,7 @@ class IgorApp:
     def open_file(self, filepath, filekind="procedure",
                   readonly=False, invisible=False, symbolicpathname=""):
         """Open a file.
-        Params:
+        Args:
             filepath (str): file path.
             filekind (str): "procedure", "notebook" or "help". 
                 The default value is "procedure".
@@ -479,11 +478,9 @@ class IgorApp:
         self.quit(only_when_saved=False)
 
     @property
-    def data(self):
+    def root(self):
         """Root directory of the data in igor pro."""
         return OLEIgorFolder("root:", self)
-
-    root = data
 
     @property
     def cwd(self):
@@ -535,7 +532,7 @@ class IgorApp:
                 unit=None, win_behavior=0, category_plot=False,
                 inset_frame=None, vertical=False, overwrite=False):
         """ Make a graph on igor. Call Display command in igor
-        Params:
+        Args:
             ywaves (Wave, or list, tuple of Waves): wave(s) of y-axis data.
             xwave (Wave, optional): wave of x-axis data.
             winname (str, optional): unique name to identify the graph. (/N flag.)
@@ -803,6 +800,17 @@ class IgorApp:
         """
         return OLEIgorVariable(path, self)
 
+    def __eq__(self, other):
+        if not hasattr(other, "reference"):
+            return False
+        return self.reference == other.reference
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.quit_wo_save()
+
 
 class OLEIgorObjectBase(IgorObjectBase):
     def _path(self, relative=False, quoted=False):
@@ -1030,17 +1038,17 @@ class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
     
     def to_DataFrame(self):
         """Convert igor folder to pandas.DataFrame"""
-        return utils.to_pd_DataFrame(self._igorconsole_to_igorfolder())
+        return utils.to_pd_DataFrame(self._igorconsole_to_igorfolder_())
 
-    def _igorconsole_to_igorfolder(self):
+    def _igorconsole_to_igorfolder_(self):
         folders = {}
         for f in self.subfolders:
-            folders[f.name] = f._igorconsole_to_igorfolder()
+            folders[f.name] = f._igorconsole_to_igorfolder_()
         contents = {}
         for v in self.variables:
-            contents[v.name] = v._igorconsole_to_igorvariable()
+            contents[v.name] = v._igorconsole_to_igorvariable_()
         for w in self.waves:
-            contents[w.name] = w._igorconsole_to_igorwave()
+            contents[w.name] = w._igorconsole_to_igorwave_()
         info = {
             "type": "IgorFolder",
             "subfolders": folders,
@@ -1053,6 +1061,49 @@ class OLEIgorFolder(OLEIgorObjectBase, IgorFolderBase):
     w = waves
 
     v = variables
+
+    def _repr_html_(self):
+        html = []
+        html.append(
+            "<h4><em>Folder at:</em> {}</h4>".format(self.path)
+        )
+        html.append("<dl>")
+        #subfoleders
+        html.append("<dt>Subfolders:</dt>")
+        html.append("<dd>")
+        if self.subfolders:
+            html.append('<ol start="0">')
+            for f in self.subfolders:
+                html.append(
+                    "<li>{}</li>".format(f.name)
+                )
+            html.append("</ol>")
+        html.append("</dd>")
+        #waves
+        html.append("<dt>Waves:</dt>")
+        html.append("<dd>")
+        if self.waves:
+            html.append('<ol start="0">')
+            for f in self.waves:
+                html.append(
+                    "<li>{}</li>".format(f.name)
+                )
+            html.append("</ol>")
+        html.append("</dd>")
+        #variables
+        html.append("<dt>Variables:</dt>")
+        html.append("<dd>")
+        if self.variables:
+            html.append('<ol start="0">')
+            for f in self.variables:
+                html.append(
+                    "<li>{}</li>".format(f.name)
+                )
+            html.append("</ol>")
+        html.append("</dd>")
+        html.append("</dl>")
+        return "".join(html)
+
 
 class TempFolder(OLEIgorFolder):
     def __init__(self, app, name=None):
@@ -1109,7 +1160,7 @@ class OLEIgorVariable(OLEIgorObjectBase, IgorVariableBase):
     def __repr__(self):
         return str(self)
 
-    def _igorconsole_to_igorvariable(self):
+    def _igorconsole_to_igorvariable_(self):
         info = {
             "type": "IgorVariable",
             "value": self.value
@@ -1421,7 +1472,11 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
         Args:
             other (object): other object to compare.
         """
-        return self.path == other.path
+        if not hasattr(other, "app"):
+            return False
+        if not hasattr(other, "path"):
+            return False
+        return (self.app == other.app) and (self.path == other.path)
 
     def is_equiv(self, other):
         """Check the wave is equivalent.
@@ -1433,10 +1488,10 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
             Use np.all(wave1 == wave2) to compare the data value only.
             Use is_ method to check if self and ther refers the same pointer of the igor object.
         """
-        if not hasattr(other, "_igorconsole_to_igorwave"):
+        if not hasattr(other, "_igorconsole_to_igorwave_"):
             return False
-        selfinfo = self._igorconsole_to_igorwave()
-        otherinfo = other._igorconsole_to_igorwave()
+        selfinfo = self._igorconsole_to_igorwave_()
+        otherinfo = other._igorconsole_to_igorwave_()
         try:
             if selfinfo["scalings"] != otherinfo["scalings"]:
                 return False
@@ -1449,49 +1504,49 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     #inplace
     def fill(self, value):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].fill(value)
         self.parent.waves[self.name] = info
 
     #inplace
     def itemset(self, *args):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].itemset(*args)
         self.parent.waves[self.name] = info
 
     #inplace
     def partition(self, *args, **kwargs):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].partition(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def put(self, *args, **kwargs):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].put(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def resize(self, *args, **kwargs):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].resize(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def setfield(self, *args, **kwargs):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].setfield(*args, **kwargs)
         self.parent.waves[self.name] = info
 
     #inplace
     def sort(self, *args, **kwargs):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].sort(*args, **kwargs)
         self.parent.waves[self.name] = info
 
@@ -1499,7 +1554,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     @NdArrayMethodMixin.imag.setter
     def imag(self, obj):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].imag = obj
         self.parent.waves[self.name] = info
 
@@ -1507,7 +1562,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     @NdArrayMethodMixin.real.setter
     def real(self, obj):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].real = obj
         self.parent.waves[self.name] = info
 
@@ -1515,7 +1570,7 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     @NdArrayMethodMixin.shape.setter
     def shape(self, obj):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].shape = obj
         self.parent.waves[self.name] = info
 
@@ -1523,11 +1578,11 @@ class OLEIgorWave(OLEIgorObjectBase, IgorWaveBase):
     @NdArrayMethodMixin.strides.setter
     def stridesl(self, obj):
         """Emulate property of numpy.ndarray. See the corresponding document of numpy."""
-        info = self._igorconsole_to_igorwave()
+        info = self._igorconsole_to_igorwave_()
         info["array"].strides = obj
         self.parent.waves[self.name] = info
 
-    def _igorconsole_to_igorwave(self):
+    def _igorconsole_to_igorwave_(self):
         info = {
             "type": "IgorWave",
             "array": self.array,
@@ -1611,7 +1666,7 @@ class OLEIgorFolderCollection(OLEIgorObjectCollection):
     @staticmethod
     def addable(obj):
         """Check the object can be add to this folder."""
-        if hasattr(obj, "_igorconsole_to_igorfolder"):
+        if hasattr(obj, "_igorconsole_to_igorfolder_"):
             return True
         if str(obj.__class__) == "<class 'pandas.core.frame.DataFrame'>":
             return True
@@ -1626,8 +1681,8 @@ class OLEIgorFolderCollection(OLEIgorObjectCollection):
             raise TypeError("cannot convert to igor folder structure.")
         if str(val.__class__) == "<class 'pandas.core.frame.DataFrame'>":
             val = utils.from_pd_DataFrame(val)
-        if hasattr(val, "_igorconsole_to_igorfolder"):
-            val = val._igorconsole_to_igorfolder()
+        if hasattr(val, "_igorconsole_to_igorfolder_"):
+            val = val._igorconsole_to_igorfolder_()
         if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorFolder"):
             self.add(key, overwrite=True)
             f = self[key]
@@ -1721,7 +1776,7 @@ class OLEIgorWaveCollection(OLEIgorObjectCollection):
     def addable(obj):
         """Check if the object can be add to this folder."""
         #if wave or convartable
-        if hasattr(obj, "_igorconsole_to_igorwave"):
+        if hasattr(obj, "_igorconsole_to_igorwave_"):
             return True
         if isinstance(obj, dict) and ("type" in obj) and (obj["type"] == "IgorWave"):
             return True
@@ -1744,8 +1799,8 @@ class OLEIgorWaveCollection(OLEIgorObjectCollection):
         if not type(self).addable(val):
             raise TypeError("This object cannot be converted to igor wave.")
 
-        if hasattr(val, "_igorconsole_to_igorwave"):
-            val = val._igorconsole_to_igorwave()
+        if hasattr(val, "_igorconsole_to_igorwave_"):
+            val = val._igorconsole_to_igorwave_()
         if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorWave"):
             array = val["array"]
             scalings = val["scalings"] if "scalings" in val else None
@@ -1800,7 +1855,7 @@ class OLEIgorVariableCollection(OLEIgorObjectCollection):
     @staticmethod
     def addable(obj):
         """Check if the object can be add to this folder."""
-        if hasattr(obj, "_igorconsole_to_igorvariable"):
+        if hasattr(obj, "_igorconsole_to_igorvariable_"):
             return True
         if isinstance(obj, dict) and ("type" in obj) and (obj["type"] == "IgorVariable"):
             return True
@@ -1812,8 +1867,8 @@ class OLEIgorVariableCollection(OLEIgorObjectCollection):
             raise TypeError("name of the igor variable must be a string.")
         if not type(self).addable(val):
             raise TypeError("Cannot convert to igor variable.")
-        if hasattr(val, "_igorconsole_to_igorvariable"):
-            val = val._igorconsole_to_igorvariable()
+        if hasattr(val, "_igorconsole_to_igorvariable_"):
+            val = val._igorconsole_to_igorvariable_()
         if isinstance(val, dict) and ("type" in val) and (val["type"] == "IgorVariable"):
             val = val["value"]
         self.add(key, val, overwrite=True)
@@ -1842,12 +1897,24 @@ class Window:
         del self.app
 
 
+def _repr_svg_func(graphobj):
+    svg = graphobj.get_image_binary(filetype="svg")
+    return svg.decode("utf-8")
+
 class Graph(Window):
     def __init__(self, name, app):
         super().__init__(name, app)
+        if self.app.version >= 7:
+            self._repr_svg_ = types.MethodType(
+                _repr_svg_func, self
+            )
 
     def __repr__(self):
         return "<igorconsole.Graph named {0}>".format(self.name)
+
+    def _repr_png_(self):
+        png = self.get_image_binary(filetype="png")
+        return png
 
     def __contains__(self, key):
         if isinstance(key, str):
@@ -2100,8 +2167,14 @@ class Graph(Window):
             t = -6
         elif t == "tiff":
             t = -7
-        else:
+        elif t == "pdf":
             t = -8
+        elif t == "svg":
+            if self.app.version < 7:
+                raise ValueError("SVG is not supported on this igor version.")
+            t = -9
+        else:
+            raise ValueError("Invalid file type.")
         apd("/e={0}".format(t))
 
         cmyk_able = (-3, -8, -7)
